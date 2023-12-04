@@ -13,6 +13,7 @@
 
 #include "tlapack/base/utils.hpp"
 
+
 namespace tlapack {
 
 /**
@@ -86,21 +87,36 @@ void gemm(Op transA,
     tlapack_check_false(
         (idx_t)((transB == Op::NoTrans) ? nrows(B) : ncols(B)) != k);
 
+    std::vector<float> MixedMat_(m * n);
+    for(int i = 0; i < m; i++){
+        for(int j = 0; j < n; j++){
+            MixedMat_[m*j + i] = float(C(i,j));
+        }
+    }
+    bool on = true;
     if (transA == Op::NoTrans) {
         using scalar_t = scalar_type<alpha_t, TB>;
 
         if (transB == Op::NoTrans) {
+            
             for (idx_t j = 0; j < n; ++j) {
                 for (idx_t i = 0; i < m; ++i)
-                    C(i, j) *= beta;
+                    MixedMat_[m*j + i] *= float(beta);
                 for (idx_t l = 0; l < k; ++l) {
                     const scalar_t alphaTimesblj = alpha * B(l, j);
                     for (idx_t i = 0; i < m; ++i)
-                        C(i, j) += A(i, l) * alphaTimesblj;
+                        MixedMat_[m*j + i] = sadd(MixedMat_[m*j + i],float(A(i, l) * alphaTimesblj),on);
                 }
             }
+            for(int i = 0; i < m; i++){
+                for(int j = 0; j < n; j++){
+                    C(i,j) = TA(MixedMat_[m*j + i]);
+                }
+            }
+
         }
         else if (transB == Op::Trans) {
+           
             for (idx_t j = 0; j < n; ++j) {
                 for (idx_t i = 0; i < m; ++i)
                     C(i, j) *= beta;
@@ -112,6 +128,7 @@ void gemm(Op transA,
             }
         }
         else {  // transB == Op::ConjTrans
+    
             for (idx_t j = 0; j < n; ++j) {
                 for (idx_t i = 0; i < m; ++i)
                     C(i, j) *= beta;
@@ -127,6 +144,7 @@ void gemm(Op transA,
         using scalar_t = scalar_type<TA, TB>;
 
         if (transB == Op::NoTrans) {
+          
             for (idx_t j = 0; j < n; ++j) {
                 for (idx_t i = 0; i < m; ++i) {
                     scalar_t sum(0);
@@ -137,6 +155,7 @@ void gemm(Op transA,
             }
         }
         else if (transB == Op::Trans) {
+      
             for (idx_t j = 0; j < n; ++j) {
                 for (idx_t i = 0; i < m; ++i) {
                     scalar_t sum(0);
@@ -147,6 +166,7 @@ void gemm(Op transA,
             }
         }
         else {  // transB == Op::ConjTrans
+      
             for (idx_t j = 0; j < n; ++j) {
                 for (idx_t i = 0; i < m; ++i) {
                     scalar_t sum(0);
@@ -162,6 +182,7 @@ void gemm(Op transA,
         using scalar_t = scalar_type<TA, TB>;
 
         if (transB == Op::NoTrans) {
+        
             for (idx_t j = 0; j < n; ++j) {
                 for (idx_t i = 0; i < m; ++i) {
                     scalar_t sum(0);
@@ -172,6 +193,7 @@ void gemm(Op transA,
             }
         }
         else if (transB == Op::Trans) {
+            
             for (idx_t j = 0; j < n; ++j) {
                 for (idx_t i = 0; i < m; ++i) {
                     scalar_t sum(0);
@@ -182,6 +204,7 @@ void gemm(Op transA,
             }
         }
         else {  // transB == Op::ConjTrans
+     
             for (idx_t j = 0; j < n; ++j) {
                 for (idx_t i = 0; i < m; ++i) {
                     scalar_t sum(0);
