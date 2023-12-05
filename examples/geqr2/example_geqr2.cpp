@@ -29,6 +29,8 @@
 #include <iostream>
 #include <memory>
 #include <vector>
+#include <fstream>
+
 
 //------------------------------------------------------------------------------
 /// Print matrix A in the standard output
@@ -47,6 +49,7 @@ void printMatrix(const matrix_t& A)
 }
 
 //------------------------------------------------------------------------------
+std::ofstream myfile("e5m2_error_s_qr.csv");
 template <typename real_t>
 double run(size_t m, size_t n, real_t scale)
 {
@@ -87,13 +90,21 @@ double run(size_t m, size_t n, real_t scale)
     }
 
     // Generate a random matrix in A
+    // for (size_t j = 0; j < n; ++j){
+    //     for (size_t i = 0; i < m; ++i){
+    //         if (i % 2==0)
+    //         FG(i, j) = 100000*float(-1 + 2*(rand()%2))*(static_cast<float>(rand()) / (static_cast<float>(RAND_MAX)));
+    //         else 
+    //         FG(i, j) = float(-1 + 2*(rand()%2))*(static_cast<float>(rand()) / (static_cast<float>(RAND_MAX)));
+    //         sums[i] += abs(FG(i,j));
+    //     }
+    // }
+
+    // Actually random A
     for (size_t j = 0; j < n; ++j){
-        for (size_t i = 0; i < m; ++i){
-            if (i % 2==0)
-            FG(i, j) = 100000*float(-1 + 2*(rand()%2))*(static_cast<float>(rand()) / (static_cast<float>(RAND_MAX)));
-            else 
-            FG(i, j) = float(-1 + 2*(rand()%2))*(static_cast<float>(rand()) / (static_cast<float>(RAND_MAX)));
-            sums[i] += abs(FG(i,j));
+        for (size_t i = 0; i < n; ++i) {
+            FG(i, j) = float(-1 + 2*(rand()%2))*(static_cast<float>(rand()) / (static_cast<float>(RAND_MAX)));            //A(i,j) = A(i,j)*scale;
+            //A(i,j) = static_cast<float>(i == j ? 1:0);   --added this as a sanity check
         }
     }
 
@@ -104,7 +115,7 @@ double run(size_t m, size_t n, real_t scale)
         Scal_[k] = sqrt(float(scale)*0.125)/normA;
     }
     
-    std::cout << normA;
+    // std::cout << normA;
      for (size_t j = 0; j < n; ++j){
         for (size_t i = 0; i < m; ++i){
             A(i,j) = static_cast<real_t>(FG(i,j)*Scal_[j]);
@@ -209,16 +220,16 @@ double run(size_t m, size_t n, real_t scale)
 
     // *) Output
 
-    std::cout << std::endl;
-    std::cout << "time = " << elapsedQR.count() * 1.0e-6 << " ms"
-              << ",   GFlop/sec = " << flopsQR * 1.0e-9;
-    std::cout << std::endl;
-    std::cout << "||QR - A||_F/||A||_F  = " << norm_repres_1
-              << ",        ||Q'Q - I||_F  = " << norm_orth_1;
-    std::cout << std::endl;
+    // std::cout << std::endl;
+    // std::cout << "time = " << elapsedQR.count() * 1.0e-6 << " ms"
+    //           << ",   GFlop/sec = " << flopsQR * 1.0e-9;
+    // std::cout << std::endl;
+    // std::cout << "||QR - A||_F/||A||_F  = " << norm_repres_1
+    //           << ",        ||Q'Q - I||_F  = " << norm_orth_1;
+    // std::cout << std::endl;
     //std::cout << float(R(10,10)) << std::endl;
  
-    
+    myfile << n << "," << norm_repres_1 << "\n";
 
     return norm_repres_1;
 
@@ -232,26 +243,36 @@ int main(int argc, char** argv)
     typedef ml_dtypes::float8_e5m2 float8e5m2;
     int m, n;
 
+    for (int size = 5; size < 100; size++){
+
+    std::cout << size << std::endl;
+
     // Default arguments
-    m = (argc < 2) ? 300 : atoi(argv[1]);
-    n = (argc < 3) ? 300 : atoi(argv[2]);
+    m = (argc < 2) ? size : atoi(argv[1]);
+    n = (argc < 3) ? size : atoi(argv[2]);
     double err1 = 0;
     double err2 = 0;
-    for (int i = 0; i < 1; i++){
-    srand(10);  // Init random seed
+    int seed = 0;
+
+    for (int i = 0; i < 100; i++){
+    
+    seed++;
+    srand(seed);  // Init random seed
 
     // std::cout.precision(5);
     // std::cout << std::scientific << std::showpos;
 
-     printf("run< float8e4m3fn, L >( %d )\n", n);
-     std::cout << "epsilon" << ml_dtypes::float8_internal::numeric_limits_float8_e4m3fn::epsilon() << std::endl;
-    err1 += run<float8e4m3fn>(m, n, ml_dtypes::float8_internal::numeric_limits_float8_e4m3fn::max());    
+    // printf("run< float8e4m3fn, L >( %d )\n", n);
+    // std::cout << "epsilon" << ml_dtypes::float8_internal::numeric_limits_float8_e4m3fn::epsilon() << std::endl;
+    err1 += run<float8e5m2>(m, n, ml_dtypes::float8_internal::numeric_limits_float8_e5m2::max());  
     // printf("-----------------------\n");
 
-     printf("run< float8e5m2, L >( %d )\n", n);
-          std::cout << "epsilon" << ml_dtypes::float8_internal::numeric_limits_float8_e5m2::epsilon() << std::endl;
+    }
 
-    err2 += run<float8e5m2>(m, n, ml_dtypes::float8_internal::numeric_limits_float8_e5m2::max());    
+    //  printf("run< float8e5m2, L >( %d )\n", n);
+    //       std::cout << "epsilon" << ml_dtypes::float8_internal::numeric_limits_float8_e5m2::epsilon() << std::endl;
+
+    // err2 += run<float8e5m2>(m, n, ml_dtypes::float8_internal::numeric_limits_float8_e5m2::max());    
     }
     //run<Eigen::half>(m,n,Eigen::half{1});
     // printf("-----------------------\n");
@@ -268,8 +289,8 @@ int main(int argc, char** argv)
     // printf("run< long double >( %d, %d )", m, n);
     // run<long double>(m, n);
     // printf("-----------------------\n");
-    std::cout << err1 << std::endl;
-    std::cout << err2 << std::endl;
+    //std::cout << err1 << std::endl;
+    //std::cout << err2 << std::endl;
     
     
 

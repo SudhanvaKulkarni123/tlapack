@@ -29,9 +29,11 @@
 // C++ headers
 #include <iostream>
 #include <vector>
+#include <fstream>
 
 
 //------------------------------------------------------------------------------
+std::ofstream myfile("test.csv");
 template <class T, tlapack::Layout L>
 void run(size_t n, T scale)
 {
@@ -48,7 +50,7 @@ void run(size_t n, T scale)
     // forming A, a random matrix
     for (idx_t j = 0; j < n; ++j)
         for (idx_t i = 0; i < n; ++i) {
-            FG(i, j) = float(-1 + 2*(rand()%2))*(1000*static_cast<float>(rand()) / (static_cast<float>(RAND_MAX)));            //A(i,j) = A(i,j)*scale;
+            FG(i, j) = float(-1 + 2*(rand()%2))*(static_cast<float>(rand()) / (static_cast<float>(RAND_MAX)));            //A(i,j) = A(i,j)*scale;
             //A(i,j) = static_cast<float>(i == j ? 1:0);   --added this as a sanity check
         }
     float normA = tlapack::lange(tlapack::Norm::Inf, FG);
@@ -102,15 +104,15 @@ void run(size_t n, T scale)
     // X <----- U^{-1}L^{-1}P; swapping columns of X according to piv
     for (idx_t i = n; i-- > 0;) {
         if (piv[i] != i) {
-            auto vect1 = tlapack::row(X, i);
-            auto vect2 = tlapack::row(X, piv[i]);
+            auto vect1 = tlapack::row(X, piv[i]);
+            auto vect2 = tlapack::row(X, i);
             tlapack::swap(vect1, vect2);
         }
     }
 
     //create E to store A * X
-    std::vector<T> E_(n * n);
-    tlapack::LegacyMatrix<T, idx_t, L> E(n, n, E_.data(), n);
+    std::vector<float> E_(n * n);
+    tlapack::LegacyMatrix<float, idx_t, L> E(n, n, E_.data(), n);
      for (size_t j = 0; j < n; ++j){
         for (size_t i = 0; i < n; ++i)
             E(i,j) = (normA*float(X(i,j))/sqrt(float(scale)*0.125)) - FG(i,j);
@@ -123,12 +125,13 @@ void run(size_t n, T scale)
     //     E(i, i) -= real_t(1);
 
     // error1 is  || X - A || / ||A||
-    real_t error = tlapack::lange(tlapack::Norm::Fro, E) ;
+    float error = tlapack::lange(tlapack::Norm::Fro, E) ;
     //real_t cond_A = normA* tlapack::lange(tlapack::Norm::Fro, X);
     // Output "
-    std::cout << "||A||_F = " << normA << std::endl;
+    //std::cout << "||A||_F = " << normA << std::endl;
     //std::cout << " k(A) = " << cond_A << std::endl;
-    std::cout << "||inv(A)*A - I||_F / ||A||_F = " << error << std::endl;
+    //std::cout << "||inv(A)*A - I||_F / ||A||_F = " << error << std::endl;
+    myfile << n << "," << error << "\n";
 }
 
 //------------------------------------------------------------------------------
@@ -139,54 +142,59 @@ int main(int argc, char** argv)
     int n;
     const tlapack::Layout L = tlapack::Layout::ColMajor;
 
-    // Default arguments
-    //n = (argc < 2) ? 100 : atoi(argv[1]);
-    n = 50;
-   
-    srand(100);  // Init random seed
-
-    std::cout.precision(5);
-    std::cout << std::scientific << std::showpos;
-
-    printf("run< float, L >( %d )\n", n);
-    run<float, L>(n, 0.05);
-    printf("-----------------------\n");
-
-    // printf("run< float, L >( %d )\n", n);
-    // run<Eigen::half, L>(n, Eigen::half{1});
-    // printf("-----------------------\n");
-
-    //-------------------------------------------
-    //print out machine epsilon
-    //print out rounding mode
-    //get to know semantics of current floats
-    //print out norm of A ---done
-    //condition number ---done
-    //accumulation in different precisions?
-    //look at mixed precision for sgemm and trsm
-    //------------------------------------------
+    double seed = 1;
+    double error = 0;
 
 
-    printf("run< float8e4m3fn, L >( %d )\n", n);
-    run<float8e5m2 , L>(n, ml_dtypes::float8_internal::numeric_limits_float8_e5m2::max());
-    printf("-----------------------\n");
+   // Default arguments
+   //n = (argc < 2) ? 100 : atoi(argv[1]);
 
-     printf("run< float8e5m2, L >( %d )\n", n);
-    run<float8e5m2 , L>(n, ml_dtypes::float8_internal::numeric_limits_float8_e5m2::max());
-    printf("-----------------------\n");
+   for (int size = 5; size < 10; size++){
+   std::cout << size << std::endl;
+   for (int i = 0; i < 100; i++){
 
-    // printf("run< float8e4m3fn, L >( %d )\n", n);
-    // run<Eigen::half , L>(n);
-    // printf("-----------------------\n");
+   seed++;
+   n = size;
+ 
+   srand(seed);  // Init random seed
+
+   std::cout.precision(5);
+   std::cout << std::scientific << std::showpos;
+
+
+   //-------------------------------------------
+   //print out machine epsilon
+   //print out rounding mode
+   //get to know semantics of current floats
+   //print out norm of A ---done
+   //condition number ---done
+   //accumulation in different precisions?
+   //look at mixed precision for sgemm and trsm
+   //------------------------------------------
+
+
+
+
+   //printf("run< float8e4m3fn, L >( %d )\n", n);
+   // run<float8e4m3fn , L>(n, ml_dtypes::float8_internal::numeric_limits_float8_e4m3fn::max());
+   //printf("-----------------------\n");
+
+
+   // printf("run< float8e5m2, L >( %d )\n", n);
+   run<float8e5m2 , L>(n, ml_dtypes::float8_internal::numeric_limits_float8_e5m2::max());
+   // printf("-----------------------\n");
+   }
+   }
+
 
 
     //  printf("run<bfloat, L >( %d )\n", n);
     // run<Eigen::half, L>(n, Eigen::half{1});
     // printf("-----------------------\n");
 
-    printf("run< double, L >( %d )\n", n);
-    run<double, L>(n, 1);
-    printf("-----------------------\n");
+    // printf("run< double, L >( %d )\n", n);
+    // run<double, L>(n, 1);
+    // printf("-----------------------\n");
 
     // printf("run< complex<float>, L >( %d )\n", n);
     // run<std::complex<float>, L>(n, 1);
