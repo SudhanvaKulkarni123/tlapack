@@ -158,6 +158,7 @@ int main(int argc, char** argv)
  
    srand(seed);  // Init random seed
 
+
    std::cout.precision(5);
    std::cout << std::scientific << std::showpos;
 
