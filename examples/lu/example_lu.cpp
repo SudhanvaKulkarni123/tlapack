@@ -33,7 +33,7 @@
 
 
 //------------------------------------------------------------------------------
-std::ofstream myfile("test.csv");
+std::ofstream myfile("e3m4_error_s.csv");
 template <class T, tlapack::Layout L>
 void run(size_t n, T scale)
 {
@@ -139,6 +139,7 @@ int main(int argc, char** argv)
 {
     typedef ml_dtypes::float8_e4m3fn float8e4m3fn;
     typedef ml_dtypes::float8_e5m2 float8e5m2;
+    typedef ml_dtypes::float8_e3m4 float8e3m4;
     int n;
     const tlapack::Layout L = tlapack::Layout::ColMajor;
 
@@ -149,7 +150,7 @@ int main(int argc, char** argv)
    // Default arguments
    //n = (argc < 2) ? 100 : atoi(argv[1]);
 
-   for (int size = 5; size < 10; size++){
+   for (int size = 5; size < 100; size++){
    std::cout << size << std::endl;
    for (int i = 0; i < 100; i++){
 
@@ -182,7 +183,7 @@ int main(int argc, char** argv)
 
 
    // printf("run< float8e5m2, L >( %d )\n", n);
-   run<float8e5m2 , L>(n, ml_dtypes::float8_internal::numeric_limits_float8_e5m2::max());
+   run<float8e3m4 , L>(n, ml_dtypes::float8_internal::numeric_limits_float8_e3m4::max());
    // printf("-----------------------\n");
    }
    }
