@@ -15,7 +15,7 @@ limitations under the License.
 
 #ifndef ML_DTYPES_FLOAT8_H_
 #define ML_DTYPES_FLOAT8_H_
-#define STOCHASTIC_MODE
+// #define STOCHASTIC_MODE
 
 // 8-bit Floating Point Interchange Format, as described by
 //   https://arxiv.org/abs/2209.05433
@@ -875,7 +875,7 @@ struct numeric_limits_float8_e5m2 : public numeric_limits_float8_base {
 
 struct numeric_limits_float8_e3m4 : public numeric_limits_float8_base {
  private:
-  static inline constexpr const int kExponentBias = 24;
+  static inline constexpr const int kExponentBias = 3;
   static inline constexpr const int kMantissaBits = 4;
 
  public:

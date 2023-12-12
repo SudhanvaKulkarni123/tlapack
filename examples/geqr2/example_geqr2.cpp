@@ -49,7 +49,7 @@ void printMatrix(const matrix_t& A)
 }
 
 //------------------------------------------------------------------------------
-std::ofstream myfile("e5m2_error_s_qr.csv");
+std::ofstream myfile("e3m4_error_s_qr.csv");
 template <typename real_t>
 double run(size_t m, size_t n, real_t scale)
 {
@@ -241,6 +241,8 @@ int main(int argc, char** argv)
 {
     typedef ml_dtypes::float8_e4m3fn float8e4m3fn;
     typedef ml_dtypes::float8_e5m2 float8e5m2;
+    typedef ml_dtypes::float8_e3m4 float8e3m4;
+
     int m, n;
 
     for (int size = 5; size < 100; size++){
@@ -264,7 +266,7 @@ int main(int argc, char** argv)
 
     // printf("run< float8e4m3fn, L >( %d )\n", n);
     // std::cout << "epsilon" << ml_dtypes::float8_internal::numeric_limits_float8_e4m3fn::epsilon() << std::endl;
-    err1 += run<float8e5m2>(m, n, ml_dtypes::float8_internal::numeric_limits_float8_e5m2::max());  
+    err1 += run<float8e3m4>(m, n, ml_dtypes::float8_internal::numeric_limits_float8_e3m4::max());  
     // printf("-----------------------\n");
 
     }

@@ -33,7 +33,7 @@
 
 
 //------------------------------------------------------------------------------
-std::ofstream myfile("e3m4_error_s.csv");
+std::ofstream myfile("e4m3_error_d_cond.csv");
 template <class T, tlapack::Layout L>
 void run(size_t n, T scale)
 {
@@ -125,13 +125,13 @@ void run(size_t n, T scale)
     //     E(i, i) -= real_t(1);
 
     // error1 is  || X - A || / ||A||
-    float error = tlapack::lange(tlapack::Norm::Fro, E) ;
-    //real_t cond_A = normA* tlapack::lange(tlapack::Norm::Fro, X);
+    float error = tlapack::lange(tlapack::Norm::Fro, E)  / double(normA);
+    float cond_A = double(normA)* tlapack::lange(tlapack::Norm::Fro, X);
     // Output "
     //std::cout << "||A||_F = " << normA << std::endl;
     //std::cout << " k(A) = " << cond_A << std::endl;
     //std::cout << "||inv(A)*A - I||_F / ||A||_F = " << error << std::endl;
-    myfile << n << "," << error << "\n";
+    myfile << cond_A << "," << error << "\n";
 }
 
 //------------------------------------------------------------------------------
@@ -150,9 +150,10 @@ int main(int argc, char** argv)
    // Default arguments
    //n = (argc < 2) ? 100 : atoi(argv[1]);
 
-   for (int size = 5; size < 100; size++){
+   //for (int size = 5; size < 100; size++){
+    int size = 10;
    std::cout << size << std::endl;
-   for (int i = 0; i < 100; i++){
+   for (int i = 0; i < 1000; i++){
 
    seed++;
    n = size;
@@ -183,10 +184,10 @@ int main(int argc, char** argv)
 
 
    // printf("run< float8e5m2, L >( %d )\n", n);
-   run<float8e3m4 , L>(n, ml_dtypes::float8_internal::numeric_limits_float8_e3m4::max());
+   run<float8e4m3fn , L>(n, ml_dtypes::float8_internal::numeric_limits_float8_e4m3fn::max());
    // printf("-----------------------\n");
    }
-   }
+   //}
 
 
 
