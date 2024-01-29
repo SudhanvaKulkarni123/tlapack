@@ -22,13 +22,17 @@
 #include <tlapack/blas/trsm.hpp>
 #include <tlapack/blas/trmm.hpp>
 #include <tlapack/lapack/getrf.hpp>
+#include <tlapack/lapack/geqr2.hpp>
 #include <tlapack/lapack/lacpy.hpp>
 #include <tlapack/lapack/lange.hpp>
 #include "../../eigen/Eigen/Core"
+#include <tlapack/lapack/ung2r.hpp>
+
 
 // C++ headers
 #include <iostream>
 #include <vector>
+#include <fstream>
 
 template <typename matrix_t>
 void printMatrix(const matrix_t& A)
@@ -44,12 +48,20 @@ void printMatrix(const matrix_t& A)
     }
 }
 //------------------------------------------------------------------------------
+std::ofstream myfile("e5m2_error_f_cond.csv");
+
 template <class T, tlapack::Layout L>
-void run(size_t n, T scale)
+void run(size_t n, T scale, float cond)
 {
+
+ 
+    using matrix_t = tlapack::LegacyMatrix<T>;
     using real_t = tlapack::real_type<T>;
     using idx_t = size_t;
     using range = std::__1::pair<idx_t, idx_t>;
+
+    // Functors for creating new matrices
+    tlapack::Create<matrix_t> new_matrix;
 
     // Create the n-by-n matrix A
     std::vector<T> A_(n * n);
@@ -74,29 +86,43 @@ void run(size_t n, T scale)
     std::vector<float> FG_(n * n);
     tlapack::LegacyMatrix<float, idx_t, L> FG(n, n, FG_.data(), n);
 
-    // std::vector<float> R1_;
-    // auto R1 = new_matrix(R1_, m, n);
-    // std::vector<float> R2_;
-    // auto R2 = new_matrix(R2_, m, n);
-    // for(int j = 0; j < n; ++j){
-    //     for(int i = 0; i < m; ++i){
-    //         R1(i,j) = (static_cast<float>(rand()));
-    //         R2(i,j) = (static_cast<float>(rand()));
-    //     }
-    // }
-    //  tlapack::geqr2(R1, tau_buffer);
-    // tlapack::ung2r(R1, tau_buffer);
-    //  tlapack::geqr2(R2, tau_buffer);
-    // tlapack::ung2r(R2, tau_buffer);
+
+    std::vector<real_t> tau(n);
+    std::vector<float> tau_f(n);
+    std::vector<float> tau_buffer(n);
+
+    std::vector<float> iS_(n*n, 0.0);
+    auto iS = new_matrix(iS_, n, n);
+
+   std::vector<float> R1_;
+    auto R1 = new_matrix(R1_, n, n);
+    std::vector<float> R2_;
+    auto R2 = new_matrix(R2_, n, n);
+    for(int j = 0; j < n; ++j){
+        for(int i = 0; i < n; ++i){
+            R1(i,j) = (static_cast<float>(rand()));
+            R2(i,j) = (static_cast<float>(rand()));
+        }
+    }
+    //take QR of R1 and R2 to get orthogonal matrices U and V^T
+    tlapack::geqr2(R1, tau_buffer);
+    tlapack::ung2r(R1, tau_buffer);
+     tlapack::geqr2(R2, tau_buffer);
+    tlapack::ung2r(R2, tau_buffer);
 
     // forming A, a random matrix
-    for (idx_t j = 0; j < n; ++j)
-        for (idx_t i = 0; i < n; ++i) {
-            FG(i, j) = float(scale)*float(-1 + 2*(rand()%2))*(static_cast<float>(rand()) / (static_cast<float>(RAND_MAX)));            //A(i,j) = A(i,j)*scale;
-            //A(i,j) = static_cast<float>(i == j ? 1:0);   --added this as a sanity check
-        }
-    int count = 0;
+    for(int i = 0; i < n; i++){
+        iS(i,i) = float(1/(cond - (n - 1- i)*(cond- 1)/(n-1)));
+    }
+    //printMatrix(iS);
+    // std::cout << std::endl;
+    std::vector<float> iA_;
+    auto iA = new_matrix(iA_, n, n);
+    //now call gemm
+    tlapack::gemm(tlapack::NO_TRANS,tlapack::NO_TRANS,1.0, iS, R1,0, iA);
+    tlapack::gemm(tlapack::NO_TRANS,tlapack::NO_TRANS,1.0, R2, iA,0, FG);
     //first we'll perform equilibration
+    int count = 0;
     while(true){
         for(int i = 0; i < n; i++){
             auto b1 = tlapack::rows(FG,range(i,i+1));
@@ -242,10 +268,11 @@ void run(size_t n, T scale)
     float other_error = tlapack::lange(tlapack::Norm::Max, Ef);
     //real_t cond_A = normA* tlapack::lange(tlapack::Norm::Fro, X);
     // Output "
-    std::cout << "||A||_F = " << normA << std::endl;
-    //std::cout << " k(A) = " << cond_A << std::endl;
-    std::cout << "||inv(A)*A - I||_F / ||A||_F = " << error << std::endl;
-    std::cout << "float vs 8-bit" << other_error << std::endl;
+    // std::cout << "||A||_inf = " << normA << std::endl;
+    // //std::cout << " k(A) = " << cond_A << std::endl;
+    // std::cout << "||A - L*U||_inf / ||A||_inf = " << error << std::endl;
+    // std::cout << "float32 vs 8-bit" << other_error << std::endl;
+    myfile << cond << "," << error << "," << other_error << "\n";
 }
 
 //------------------------------------------------------------------------------
@@ -258,7 +285,7 @@ int main(int argc, char** argv)
 
     // Default arguments
     //n = (argc < 2) ? 100 : atoi(argv[1]);
-    n = 500;
+    n = 100;
    
       // Init random seed
     srand(100);
@@ -273,33 +300,27 @@ int main(int argc, char** argv)
     // run<Eigen::half, L>(n, Eigen::half{1});
     // printf("-----------------------\n");
 
-    //-------------------------------------------
-    //print out machine epsilon
-    //print out rounding mode
-    //get to know semantics of current floats
-    //print out norm of A ---done
-    //condition number ---done
-    //accumulation in different precisions?
-    //look at mixed precision for sgemm and trsm
-    //------------------------------------------
 
+    for (int i = 0; i < 1000; i += 10){
    
-    printf("run< float8e4m3fn, L >( %d )\n", n);
-    run<float8e5m2 , L>(n, ml_dtypes::float8_internal::numeric_limits_float8_e5m2::max());
-    printf("-----------------------\n");
-
-     printf("run< float8e5m2, L >( %d )\n", n);
-    run<float8e5m2 , L>(n, ml_dtypes::float8_internal::numeric_limits_float8_e5m2::max());
+    //printf("run< float8e4m3fn, L >( %d )\n", n);
+    //run<float8e4m3fn , L>(n, ml_dtypes::float8_internal::numeric_limits_float8_e4m3fn::max(), static_cast<float>(i));
     
-    printf("-----------------------\n");
+    // printf("-----------------------\n");
+
+    //  printf("run< float8e5m2, L >( %d )\n", n);
+    run<float8e5m2 , L>(n, ml_dtypes::float8_internal::numeric_limits_float8_e5m2::max(), static_cast<float>(i));
+    }
+    
+    // printf("-----------------------\n");
 
     // printf("run< float8e4m3fn, L >( %d )\n", n);
     // run<Eigen::half , L>(n);
     // printf("-----------------------\n");
 
 
-    //  printf("run<bfloat, L >( %d )\n", n);
-    // run<Eigen::half, L>(n, Eigen::half{1});
+    // printf("run<bfloat, L >( %d )\n", n);
+    // run<Eigen::bfloat16, L>(n, Eigen::bfloat16{1}, 100.0);
     // printf("-----------------------\n");
 
     // printf("run< double, L >( %d )\n", n);
@@ -310,7 +331,7 @@ int main(int argc, char** argv)
     // run<std::complex<float>, L>(n, 1);
     // printf("-----------------------\n");
 
-    // printf("run< complex<double>, L >( %d )\n", n);
+    // printf("run< complex<double>, L >( %d )\n", n);aaaa
     // run<std::complex<double>, L>(n, 1);
     // printf("-----------------------\n");
 
@@ -326,4 +347,10 @@ int main(int argc, char** argv)
     
 
     return 0;
+
+
+
+    //test non-symm eigenval prob 
+    //probability of success in terms of errors
+
 }
