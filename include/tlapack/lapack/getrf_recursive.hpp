@@ -96,8 +96,10 @@ int getrf_recursive(matrix_t& A, piv_t& piv)
         piv[0] = iamax(col(A, 0), optsIamax);
 
         // in the following case all elements are zero, and we return 1
-        if (A(piv[0], 0) == real_t(0)) return 1;
+        if (A(piv[0], 0) == real_t(0)) {
+            return 1; 
 
+        }
         // in this case, we can safely swap since A(piv[0],0) is not zero
         if (piv[0] != 0) {
             const T aux = A(piv[0], 0);
@@ -124,7 +126,7 @@ int getrf_recursive(matrix_t& A, piv_t& piv)
 
         // swap the rows of A1 according to piv
         for (idx_t j = 0; j < k; j++) {
-            if (piv[j] != j) {
+            if ((idx_t)piv[j] != j) {
                 auto vect1 = tlapack::row(A1, j);
                 auto vect2 = tlapack::row(A1, piv[j]);
                 tlapack::swap(vect1, vect2);
@@ -153,7 +155,7 @@ int getrf_recursive(matrix_t& A, piv_t& piv)
 
         // swap the rows of A1
         for (idx_t j = 0; j < k0; j++) {
-            if (piv0[j] != j) {
+            if ((idx_t)piv0[j] != j) {
                 auto vect1 = tlapack::row(A1, j);
                 auto vect2 = tlapack::row(A1, piv0[j]);
                 tlapack::swap(vect1, vect2);
@@ -175,6 +177,8 @@ int getrf_recursive(matrix_t& A, piv_t& piv)
         // A11 <---- A11 - (A10 * A01)
         gemm(NO_TRANS, NO_TRANS, T(-1), A10, A01, T(1), A11);
 
+        
+
         // Finding LU factorization of A11 in place
         info = getrf_recursive(A11, piv1);
         if (info != 0) return info + k0;
@@ -182,7 +186,7 @@ int getrf_recursive(matrix_t& A, piv_t& piv)
         // swap the rows of A10 according to the swapped rows of A11 by refering
         // to piv1
         for (idx_t j = 0; j < k - k0; j++) {
-            if (piv1[j] != j) {
+            if ((idx_t)piv1[j] != j) {
                 auto vect1 = tlapack::row(A10, j);
                 auto vect2 = tlapack::row(A10, piv1[j]);
                 tlapack::swap(vect1, vect2);

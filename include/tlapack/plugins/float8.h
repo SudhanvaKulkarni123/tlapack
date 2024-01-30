@@ -15,7 +15,8 @@ limitations under the License.
 
 #ifndef ML_DTYPES_FLOAT8_H_
 #define ML_DTYPES_FLOAT8_H_
-//#define STOCHASTIC_MODE
+//#define STOCHASTIC_ROUND
+//#define STOCHASTIC_ARITH            //uncomment this for stochastic rounding for all 8-bit arithmetic operations
 
 // 8-bit Floating Point Interchange Format, as described by
 //   https://arxiv.org/abs/2209.05433
@@ -49,7 +50,6 @@ limitations under the License.
 
 #include "../../../eigen/Eigen/Core"
 
-
 namespace ml_dtypes {
 namespace float8_internal {
 
@@ -60,7 +60,9 @@ class float8_e4m3b11fnuz;
 class float8_e5m2;
 class float8_e5m2fnuz;
 class float8_e6m1;    //need to impleent this
+class float8_e3m4;
 template <int p> class float8_ieee_p;
+class block_float8;
 
 template <typename Derived>
 class float8_base {
@@ -130,30 +132,37 @@ class float8_base {
   template <typename To, bool kSaturate = false, bool kTruncate = false>
   static inline EIGEN_DEVICE_FUNC To ConvertTo(const Derived& from);
 
+  template <bool kSaturate = false, bool kTruncate = false>
+  static inline EIGEN_DEVICE_FUNC double ConvertTo(const Derived& from);
+
+   template <bool kSaturate = false, bool kTruncate = false>
+  static inline EIGEN_DEVICE_FUNC Derived ConvertFrom(const double& from);
+
+
   // Operators via float32.
   EIGEN_STRONG_INLINE EIGEN_DEVICE_FUNC Derived
   operator+(const Derived& other) const {
-    return Derived{float{derived()} + float{other}};
+    return Derived{double{derived()} + double{other}};
   }
 
   EIGEN_STRONG_INLINE EIGEN_DEVICE_FUNC Derived
   operator=(const Derived& other) const {
-    return Derived{float{other}};
+    return Derived{double{other}};
   }
 
   EIGEN_STRONG_INLINE EIGEN_DEVICE_FUNC Derived
   operator-(const Derived& other) const {
-    return Derived{float{derived()} - float{other}};
+    return Derived{double{derived()} - double{other}};
   }
 
   EIGEN_STRONG_INLINE EIGEN_DEVICE_FUNC Derived
   operator*(const Derived& other) const {
-    return Derived{float{derived()} * float{other}};
+    return Derived{double{derived()} * double{other}};
   }
 
   EIGEN_STRONG_INLINE EIGEN_DEVICE_FUNC Derived
   operator/(const Derived& other) const {
-    return Derived{float{derived()} / float{other}};
+    return Derived{double{derived()} / double{other}};
   }
 
   constexpr bool operator==(const Derived& other) const {
@@ -412,6 +421,41 @@ class float8_e5m2 : public float8_base<float8_e5m2> {
   }
 };
 
+class float8_e3m4 : public float8_base<float8_e3m4> {
+  // Exponent: 3, Mantissa: 4.
+  // IEEE 754.
+ private:
+  using Base = float8_base<float8_e3m4>;
+  friend class float8_base<float8_e3m4>;
+  using Base::Base;
+
+ public:
+ EIGEN_DEVICE_FUNC float8_e3m4(const float& f)
+      : float8_e3m4(ConvertFrom(f)) {}
+  explicit EIGEN_DEVICE_FUNC float8_e3m4(float8_e4m3fn f8)
+      : float8_e3m4(ConvertFrom(f8)) {}
+  explicit EIGEN_DEVICE_FUNC float8_e3m4(const float8_e5m2& f8)
+      : float8_e3m4(ConvertFrom(f8)) {}
+  explicit EIGEN_DEVICE_FUNC float8_e3m4(float8_e4m3fnuz f8)
+      : float8_e3m4(ConvertFrom(f8)) {}
+  explicit EIGEN_DEVICE_FUNC float8_e3m4(float8_e4m3b11fnuz f8)
+      : float8_e3m4(ConvertFrom(f8)) {}
+  explicit EIGEN_DEVICE_FUNC float8_e3m4(float8_e5m2fnuz& f8)
+      : float8_e3m4(ConvertFrom(f8)) {}
+  template <int p>
+  explicit EIGEN_DEVICE_FUNC float8_e3m4(float8_ieee_p<p> f8)
+      : float8_e3m4(ConvertFrom(f8)) {}
+  enum Ordering : int8_t {
+    kLess = -1,
+    kEquivalent = 0,
+    kGreater = 1,
+    kUnordered = 2,
+  };
+  constexpr bool operator==(const float8_e3m4& other) const {
+    return Compare(derived(), other) == Ordering::kEquivalent;
+  }
+};
+
 class float8_e5m2fnuz : public float8_base<float8_e5m2fnuz> {
   // 8-bit floating point with 2 bit mantissa.
   //
@@ -483,6 +527,8 @@ class float8_ieee_p : public float8_base<float8_ieee_p<p>> {
  public:
 
   explicit EIGEN_DEVICE_FUNC float8_ieee_p(const float8_e5m2& f8)
+      : float8_ieee_p(this->ConvertFrom(f8)) {}
+  explicit EIGEN_DEVICE_FUNC float8_ieee_p(const float8_e3m4& f8)
       : float8_ieee_p(this->ConvertFrom(f8)) {}
   explicit EIGEN_DEVICE_FUNC float8_ieee_p(const float8_e5m2fnuz& f8)
       : float8_ieee_p(this->ConvertFrom(f8)) {}
@@ -836,6 +882,70 @@ struct numeric_limits_float8_e5m2 : public numeric_limits_float8_base {
   }
 };
 
+struct numeric_limits_float8_e3m4 : public numeric_limits_float8_base {
+ private:
+  static inline constexpr const int kExponentBias = 3;
+  static inline constexpr const int kMantissaBits = 4;
+
+ public:
+  // NOLINTBEGIN: these names must match std::numeric_limits.
+  static inline constexpr const int digits = kMantissaBits + 1;
+  static inline constexpr const int digits10 = Digits10FromDigits(digits);
+  static inline constexpr const int max_digits10 =
+      MaxDigits10FromDigits(digits);
+  static inline constexpr const int min_exponent = (1 - kExponentBias) + 1;
+  static inline constexpr const int min_exponent10 =
+      MinExponent10FromMinExponent(min_exponent);
+  static inline constexpr const int max_exponent = 0b11111 - kExponentBias;
+  static inline constexpr const int max_exponent10 =
+      MaxExponent10FromMaxExponentAndDigits(max_exponent, digits);
+  static inline constexpr const bool is_iec559 = false;
+  static inline constexpr const bool has_infinity = true;
+  static inline constexpr const bool has_signaling_NaN = false;
+  // NOLINTEND
+
+  // 1.0 * 2^(0b00001 - 15) = 1.0 * 2^-14 = 0.00006103515625
+  static constexpr float8_e3m4 min() {
+    return float8_e3m4::FromRep(1 << kMantissaBits);
+  }
+  // -(1 + 0b11 * 2^-2) * 2^(0b11110 - 15) = -1.75 * 2^15 = -57344
+  static constexpr float8_e3m4 lowest() {
+    return float8_e3m4::FromRep(0b1'110'1111);
+  }
+  // (1 + 0b11 * 2^-2) * 2^(0b11110 - 15) = 1.75 * 2^15 = 57344
+  static constexpr float8_e3m4 max() {
+    return float8_e3m4::FromRep(0b0'110'1111);
+  }
+  // 1.0 * 2^-2 = 0.25
+  static constexpr float8_e3m4 epsilon() {
+    return float8_e3m4::FromRep((-kMantissaBits + kExponentBias)
+                                << kMantissaBits);
+  }
+  // 1.0 * 2^-1 = 0.5
+  static constexpr float8_e3m4 round_error() {
+    return float8_e3m4::FromRep((-1 + kExponentBias) << kMantissaBits);
+  }
+  static constexpr float8_e3m4 infinity() {
+    return float8_e3m4::FromRep(0b0'111'1111);
+  }
+  static constexpr float8_e3m4 quiet_NaN() {
+    // IEEE 754-2019 6.2.1: "All binary NaN bit strings have the sign bit S set
+    // to 0 or 1 and all the bits of the biased exponent field E set to 1
+    // (see 3.4). A quiet NaN bit string should be encoded with the first bit
+    // (d1) of the trailing significand field T being 1."
+    return float8_e3m4::FromRep(0b0'111'1000);
+  }
+  static constexpr float8_e3m4 signaling_NaN() {
+    // IEEE 754-2019 6.2.1: "A signaling NaN bit string should be encoded with
+    // the first bit of the trailing significand field being 0."
+    return float8_e3m4::FromRep(0b0'111'0001);
+  }
+  // 1.0 * 2^(-15 - 2 + 1) = 1.0 * 2^-16 = 0.0000152587890625
+  static constexpr float8_e3m4 denorm_min() {
+    return float8_e3m4::FromRep(0b0'000'0001);
+  }
+};
+
 struct numeric_limits_float8_e5m2fnuz : public numeric_limits_float8_base {
  private:
   static inline constexpr const int kExponentBias = 16;
@@ -969,6 +1079,10 @@ struct numeric_limits<ml_dtypes::float8_internal::float8_e5m2>
     : public ml_dtypes::float8_internal::numeric_limits_float8_e5m2 {};
 
 template <>
+struct numeric_limits<ml_dtypes::float8_internal::float8_e3m4>
+    : public ml_dtypes::float8_internal::numeric_limits_float8_e3m4 {};
+
+template <>
 struct numeric_limits<ml_dtypes::float8_internal::float8_e5m2fnuz>
     : public ml_dtypes::float8_internal::numeric_limits_float8_e5m2fnuz {};
 
@@ -1017,6 +1131,14 @@ constexpr inline float8_e5m2 abs(const float8_e5m2& a) {
 
 constexpr inline bool(isnan)(const float8_e5m2& a) {
   return abs(a).rep() > std::numeric_limits<float8_e5m2>::infinity().rep();
+}
+
+constexpr inline float8_e3m4 abs(const float8_e3m4& a) {
+  return float8_e3m4::FromRep(a.rep() & 0b0'111'1111);
+}
+
+constexpr inline bool(isnan)(const float8_e3m4& a) {
+  return abs(a).rep() > std::numeric_limits<float8_e3m4>::infinity().rep();
 }
 
 constexpr inline float8_e5m2fnuz abs(const float8_e5m2fnuz& a) {
@@ -1155,7 +1277,7 @@ inline Bits Stochastic_Round(Bits bits, int roundoff) {
   //Then we truncate the mantissa
   int samp = rand(); // Generate a random integer
   Bits complement = (Bits{1} << (roundoff - 1)) - 1;
-  Bits to_add = static_cast<Bits>(samp & complement); // Avoid narrowing conversion
+  Bits to_add = static_cast<Bits>(samp & complement); 
   Bits to_ret = bits + to_add; // Add random bits to the input bits
   return to_ret;
 }
@@ -1253,7 +1375,7 @@ struct ConvertImpl<From, To, kSaturate, kTruncate,
   static constexpr int kExponentOffset = kToExponentBias - kFromExponentBias;
   static constexpr int kDigitShift = kToMantissaBits - kFromMantissaBits;
 
-  static EIGEN_DEVICE_FUNC inline To run(const From& from) {
+  static EIGEN_DEVICE_FUNC inline To run(const From& from, bool stochastic) {
     // Shift bits to destination type, without sign bit.
     const bool from_sign_bit =
         Eigen::numext::bit_cast<FromBits>(from) >> (kFromBits - 1);
@@ -1306,11 +1428,11 @@ struct ConvertImpl<From, To, kSaturate, kTruncate,
           bits <<= kDigitShift;
         } else {
           if constexpr (!kTruncate) {
-            #ifdef STOCHASTIC_MODE
-            bits = Stochastic_Round(bits, -kDigitShift);
-            #else
-            bits = RoundBitsToNearestEven(bits, -kDigitShift);
-            #endif
+            
+            if(stochastic) {bits = Stochastic_Round(bits, -kDigitShift); }
+            
+            else {bits = RoundBitsToNearestEven(bits, -kDigitShift); }
+            
           }
           bits >>= -kDigitShift;
         }
@@ -1344,13 +1466,13 @@ struct ConvertImpl<From, To, kSaturate, kTruncate,
             // otherwise the lower precision bits may already be lost.  There is
             // an edge-case where rounding to a normalized value would normally
             // round down, but for a subnormal, we need to round up.
-             #ifdef STOCHASTIC_MODE
+             if(stochastic){
             rounded_from_bits =
                   Stochastic_Round(rounded_from_bits, exponent_shift);
-            #else
+             } else {
             rounded_from_bits =
                   RoundBitsToNearestEven(rounded_from_bits, exponent_shift);
-            #endif
+             }
           }
           bits = (rounded_from_bits >> exponent_shift);
         }
@@ -1364,11 +1486,11 @@ struct ConvertImpl<From, To, kSaturate, kTruncate,
     WideBits rounded_from_bits = from_bits;
     if constexpr (kDigitShift < 0) {
       if constexpr (!kTruncate) {
-        #ifdef STOCHASTIC_MODE
+        if(stochastic) {
         rounded_from_bits = Stochastic_Round(from_bits, -kDigitShift);
-        #else
+        } else {
         rounded_from_bits = RoundBitsToNearestEven(from_bits, -kDigitShift);
-        #endif
+        }
       }
       // Zero-out tail bits.
       rounded_from_bits &= ~((WideBits{1} << (-kDigitShift)) - 1);
@@ -1409,15 +1531,20 @@ struct ConvertImpl<From, To, kSaturate, kTruncate,
     // Insert sign bit.
     return from_sign_bit ? -to : to;
   }
+
+  
 };
 
 // Saturation has no impact when casting e4m3 to e5m2.
 template <bool kTruncate>
 struct ConvertImpl<float8_e4m3fn, float8_e5m2, true, kTruncate> {
   static EIGEN_DEVICE_FUNC inline float8_e5m2 run(const float8_e4m3fn& from) {
-    return ConvertImpl<float8_e4m3fn, float8_e5m2, false, kTruncate>::run(from);
+    return ConvertImpl<float8_e4m3fn, float8_e5m2, false, kTruncate>::run(from, true);
   }
 };
+
+
+
 
 template <bool kSaturate, bool kTruncate>
 struct ConvertImpl<Eigen::half, float8_e5m2, kSaturate, kTruncate> {
@@ -1438,7 +1565,7 @@ struct ConvertImpl<Eigen::half, float8_e5m2, kSaturate, kTruncate> {
     }
 
     if constexpr (!kTruncate) {
-      #ifdef STOCHASTIC_MODE
+      #ifdef STOCHASTIC_ROUND
       from_bits = Stochastic_Round(from_bits, 8);
       #else
       from_bits = RoundBitsToNearestEven(from_bits, 8);
@@ -1478,14 +1605,49 @@ struct ConvertImpl<float8_e5m2, Eigen::half, kSaturate, kTruncate> {
 template <typename Derived>
 template <bool kSaturate, bool kTruncate, typename From>
 EIGEN_DEVICE_FUNC Derived float8_base<Derived>::ConvertFrom(const From& from) {
-  return ConvertImpl<From, Derived, kSaturate, kTruncate>::run(from);
+  #ifdef STOCHASTIC_ROUND
+  return ConvertImpl<From, Derived, kSaturate, kTruncate>::run(from, true);
+  #else
+  return ConvertImpl<From, Derived, kSaturate, kTruncate>::run(from, false);
+  #endif
 }
 
 template <typename Derived>
 template <typename To, bool kSaturate, bool kTruncate>
 EIGEN_DEVICE_FUNC To float8_base<Derived>::ConvertTo(const Derived& from) {
-  return ConvertImpl<Derived, To, kSaturate, kTruncate>::run(from);
+   #ifdef STOCHASTIC_ROUND
+  return ConvertImpl<Derived, To, kSaturate, kTruncate>::run(from, true);
+  #else 
+  return ConvertImpl<Derived, To, kSaturate, kTruncate>::run(from, false);
+  #endif
+
 }
+
+template <typename Derived>
+template <bool kSaturate, bool kTruncate>
+EIGEN_DEVICE_FUNC double float8_base<Derived>::ConvertTo(const Derived& from) {
+  #ifdef STOCHASTIC_ARITH
+  return ConvertImpl<Derived, double, kSaturate, kTruncate>::run(from, true);
+  #else 
+  return ConvertImpl<Derived, double, kSaturate, kTruncate>::run(from, false);
+  #endif
+
+
+}
+
+template <typename Derived>
+template <bool kSaturate, bool kTruncate>
+EIGEN_DEVICE_FUNC Derived float8_base<Derived>::ConvertFrom(const double& from) {
+  #ifdef STOCHASTIC_ARITH
+  return ConvertImpl<double, Derived, kSaturate, kTruncate>::run(from, true);
+  #else
+  return ConvertImpl<double, Derived, kSaturate, kTruncate>::run(from, false);
+  #endif
+
+}
+
+
+
 
 }  // namespace float8_internal
 
@@ -1494,6 +1656,7 @@ using float8_e4m3fn = float8_internal::float8_e4m3fn;
 using float8_e4m3fnuz = float8_internal::float8_e4m3fnuz;
 using float8_e4m3b11fnuz = float8_internal::float8_e4m3b11fnuz;
 using float8_e5m2 = float8_internal::float8_e5m2;
+using float8_e3m4 = float8_internal::float8_e3m4;
 using float8_e5m2fnuz = float8_internal::float8_e5m2fnuz;
 template <int p>
 using float8_ieee_p = float8_internal::float8_ieee_p<p>;
@@ -1529,6 +1692,18 @@ bit_cast<uint8_t, ml_dtypes::float8_e5m2>(const ml_dtypes::float8_e5m2& src) {
   return src.rep();
 }
 
+template <>
+EIGEN_STRONG_INLINE EIGEN_DEVICE_FUNC ml_dtypes::float8_e3m4
+bit_cast<ml_dtypes::float8_e3m4, uint8_t>(const uint8_t& src) {
+  return ml_dtypes::float8_e3m4::FromRep(src);
+}
+
+template <>
+EIGEN_STRONG_INLINE EIGEN_DEVICE_FUNC uint8_t
+bit_cast<uint8_t, ml_dtypes::float8_e3m4>(const ml_dtypes::float8_e3m4& src) {
+  return src.rep();
+}
+
 }  // namespace numext
 
 // Work-around for isinf/isnan/isfinite issue on aarch64.
@@ -1554,6 +1729,12 @@ EIGEN_DEVICE_FUNC inline bool isinf_impl<ml_dtypes::float8_e4m3fnuz>(
 template <>
 EIGEN_DEVICE_FUNC inline bool isinf_impl<ml_dtypes::float8_e5m2>(
     const ml_dtypes::float8_e5m2& x) {
+  return ml_dtypes::float8_internal::isinf(x);
+}
+
+template <>
+EIGEN_DEVICE_FUNC inline bool isinf_impl<ml_dtypes::float8_e3m4>(
+    const ml_dtypes::float8_e3m4& x) {
   return ml_dtypes::float8_internal::isinf(x);
 }
 
@@ -1596,6 +1777,12 @@ EIGEN_DEVICE_FUNC inline bool isnan_impl<ml_dtypes::float8_e5m2>(
 }
 
 template <>
+EIGEN_DEVICE_FUNC inline bool isnan_impl<ml_dtypes::float8_e3m4>(
+    const ml_dtypes::float8_e3m4& x) {
+  return ml_dtypes::float8_internal::isnan(x);
+}
+
+template <>
 EIGEN_DEVICE_FUNC inline bool isnan_impl<ml_dtypes::float8_e5m2fnuz>(
     const ml_dtypes::float8_e5m2fnuz& x) {
   return ml_dtypes::float8_internal::isnan(x);
@@ -1632,6 +1819,12 @@ EIGEN_DEVICE_FUNC inline bool isfinite_impl<ml_dtypes::float8_e5m2>(
 }
 
 template <>
+EIGEN_DEVICE_FUNC inline bool isfinite_impl<ml_dtypes::float8_e3m4>(
+    const ml_dtypes::float8_e3m4& x) {
+  return ml_dtypes::float8_internal::isfinite(x);
+}
+
+template <>
 EIGEN_DEVICE_FUNC inline bool isfinite_impl<ml_dtypes::float8_e5m2fnuz>(
     const ml_dtypes::float8_e5m2fnuz& x) {
   return ml_dtypes::float8_internal::isfinite(x);
@@ -1646,15 +1839,7 @@ EIGEN_DEVICE_FUNC inline bool isfinite_impl(const ml_dtypes::float8_ieee_p<p>& x
 }  // namespace Eigen
 
 
-//adding namespace tlapack rounding functions for mixed precision approaches
 
-namespace tlapack {
-  template<class T, class U>
-  U round_to_higher_prec(T number){
-    return U(number);
-  }
-  
-}
 
 
 #endif  // ML_DTYPES_FLOAT8_H_
