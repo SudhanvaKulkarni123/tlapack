@@ -12,7 +12,7 @@
 #include <tlapack/plugins/legacyArray.hpp>
 #include <tlapack/plugins/stdvector.hpp>
 
-//#define MODE1
+#define MODE1
 
 #include <opencv2/opencv.hpp>
 
