@@ -10,7 +10,7 @@
 // Plugins for <T>LAPACK (must come before <T>LAPACK headers)
 #include <tlapack/plugins/legacyArray.hpp>
 
-#define MODE1
+//#define MODE1
 
 #include <opencv2/opencv.hpp>
 
@@ -100,7 +100,7 @@ bool isZero(const matrix_t& A)
 }
 
 //------------------------------------------------------------------------------
-std::ofstream myfile("../e4m3_error_e_cond.csv");
+std::ofstream myfile("../e5m2_error_e_cond.csv");
 template <typename real_t>
 double run(size_t m, size_t n, real_t scale, float cond)
 {
@@ -194,7 +194,7 @@ double run(size_t m, size_t n, real_t scale, float cond)
     //now that we have the SVD, we either scale the rows of Vt or columns of U by the linearly interpolated singular values
     for(int i = 0; i < n; i++){
         for(int j = 0 ; j < n; j++){
-        iS(i,i) = float(cond - i*(cond - 1)/(n-1));    //-- this is for a linear distribution of singular values
+        iS(i,i) = float(1 - float(i)*(float{1} - float{1}/cond)/float(n-1));    //-- this is for a linear distribution of singular values
         //iS(i,j) = float(std::pow(cond,float(-i)/float(n - 1)));
         
          
@@ -209,7 +209,7 @@ double run(size_t m, size_t n, real_t scale, float cond)
     if(isZero(iS)) { std::cout << "iS is zero" << std::endl;}
    
 
-    //#define MODE1 
+  
     //now call gemm
     #ifdef MODE1
     // for(int i = 0; i < m; i++){
@@ -261,16 +261,17 @@ double run(size_t m, size_t n, real_t scale, float cond)
     std::vector<real_t> R1_st;
     auto R1_mat = new_matrix(R1_st, m,n);
     std::vector<real_t> R2_st;
-    auto R2_mat = new_matrix(R1_st, m,n);
+    auto R2_mat = new_matrix(R2_st, m,n);
     std::vector<real_t> iS_st;
-    auto iS_mat = new_matrix(R1_st, m,n);
+    auto iS_mat = new_matrix(iS_st, m,n);
     std::vector<real_t> iA_st;
     auto iA_mat = new_matrix(iA_st, m,n);
     std::vector<real_t> FG_st;
     auto FG_mat = new_matrix(FG_st, m,n);
+   
     for(int i = 0; i < m; i++){
         for(int j = 0; j < n; j++){
-            R1_mat(i,j) = static_cast<real_t>(R1(i,j));
+            R1_mat(i,j) = real_t{R1(i,j)};
             R2_mat(i,j) = static_cast<real_t>(R2(i,j));
             iS_mat(i,j) = static_cast<real_t>(iS(i,j));
             iA_mat(i,j) = static_cast<real_t>(iA(i,j));
@@ -280,6 +281,7 @@ double run(size_t m, size_t n, real_t scale, float cond)
     std::vector<float> FG_d;
     std::vector<float> s_dup(n, 0.0);
     auto FG_dup = new_matrix(FG_d, m,n);
+   
     tlapack::gemm(tlapack::NO_TRANS,tlapack::NO_TRANS,real_t{1.0}, iS_mat, R1_mat,real_t{0}, iA_mat);
     tlapack::gemm(tlapack::NO_TRANS,tlapack::NO_TRANS,real_t{1.0}, R2_mat, iA_mat,real_t{0}, FG_mat);
     for(int i = 0; i < m; i++){
@@ -522,13 +524,13 @@ int main(int argc, char** argv)
     //  printf("run< float8e4m3fn, L >( %d )\n", n);
     //  std::cout << "epsilon" << ml_dtypes::float8_internal::numeric_limits_float8_e4m3fn::epsilon() << std::endl;
     //run<Eigen::bfloat16>(m,n, 1.0, static_cast<float>(i));
-    //err1 += run<float8e4m3fn>(m, n, ml_dtypes::float8_internal::numeric_limits_float8_e4m3fn::max(), static_cast<float>(i));    
+    err1 += run<float8e4m3fn>(m, n, ml_dtypes::float8_internal::numeric_limits_float8_e4m3fn::max(), static_cast<float>(i));    
     // printf("-----------------------\n");
 
      //printf("run< float8e5m2, L >( %d )\n", n);
     //std::cout << "epsilon" << ml_dtypes::float8_internal::numeric_limits_float8_e5m2::epsilon() << std::endl;
     
-    err2 += run<float8e5m2>(m, n, ml_dtypes::float8_internal::numeric_limits_float8_e5m2::max(), static_cast<float>(i));  
+    //err2 += run<float8e5m2>(m, n, ml_dtypes::float8_internal::numeric_limits_float8_e5m2::max(), static_cast<float>(i));  
 
     //er3 +=   run<float>(m,n,1.0, static_cast<float>(1000*i));
     }
