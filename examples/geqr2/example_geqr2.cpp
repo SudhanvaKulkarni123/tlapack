@@ -10,7 +10,7 @@
 // Plugins for <T>LAPACK (must come before <T>LAPACK headers)
 #include <tlapack/plugins/legacyArray.hpp>
 
-//#define MODE1
+#define MODE1
 
 #include <opencv2/opencv.hpp>
 
