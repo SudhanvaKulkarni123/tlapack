@@ -110,7 +110,7 @@ void trmm(Side side,
                     for (idx_t k = 0; k < m; ++k) {
                         const float alphaBkj = float(alpha) * _Mixed[j*m + k];
                         for (idx_t i = 0; i < k; ++i)
-                            _Mixed[j*m + i] = sadd(_Mixed[j*m + i],float(float(A(i, k)) * alphaBkj),on);
+                            _Mixed[j*m + i] = _Mixed[j*m + i] + float(float(A(i, k)) * alphaBkj);
                         _Mixed[j*m + k] = (diag == Diag::NonUnit) ? float(A(k, k) * alphaBkj)
                                                           : float(alphaBkj);
                     }
