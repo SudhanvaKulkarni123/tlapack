@@ -102,8 +102,8 @@ void run(size_t n, T scale, float cond)
     auto R2 = new_matrix(R2_, n, n);
     for(int j = 0; j < n; ++j){
         for(int i = 0; i < n; ++i){
-            R1(i,j) = (static_cast<float>(rand()));
-            R2(i,j) = (static_cast<float>(rand()));
+            R1(i,j) = (static_cast<float>(rand()))/static_cast<float>(RAND_MAX);
+            R2(i,j) = (static_cast<float>(rand()))/static_cast<float>(RAND_MAX);
         }
     }
     //take QR of R1 and R2 to get orthogonal matrices U and V^T
