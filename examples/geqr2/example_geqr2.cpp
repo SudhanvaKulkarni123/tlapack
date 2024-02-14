@@ -411,7 +411,7 @@ double run(size_t m, size_t n, real_t scale, float cond, int name, bool arithmet
         // work receives the identity n*n
         tlapack::laset(tlapack::UPPER_TRIANGLE, 0.0, 1.0, work);
         // work receives Q'Q - I
-        tlapack::syrk(tlapack::Uplo::Upper, tlapack::Op::Trans, real_t{1.0}, Q, real_t{-1.0},
+        tlapack::syrk(tlapack::Uplo::Upper, tlapack::Op::Trans, static_cast<real_t>(1.0), Q, static_cast<real_t>(-1.0),
                       work);
 
         // Compute ||Q'Q - I||_F
@@ -437,7 +437,7 @@ double run(size_t m, size_t n, real_t scale, float cond, int name, bool arithmet
         tlapack::lacpy(tlapack::GENERAL, Q, work);
 
         tlapack::trmm(tlapack::Side::Right, tlapack::Uplo::Upper,
-                      tlapack::Op::NoTrans, tlapack::Diag::NonUnit, real_t{1.0}, R,
+                      tlapack::Op::NoTrans, tlapack::Diag::NonUnit, static_cast<real_t>(1.0), R,
                       work);
     if(isNanorInf(work)) { std::cout << "work is NAn or Inf" << std::endl;}
     if(isZero(work)) { std::cout << "work is zero" << std::endl;}
@@ -499,9 +499,14 @@ double run(size_t m, size_t n, real_t scale, float cond, int name, bool arithmet
 
 int main(int argc, char** argv)
 {
+
     typedef ml_dtypes::float8_e4m3fn float8e4m3fn;
     typedef ml_dtypes::float8_e5m2 float8e5m2;
+    typedef ml_dtypes::float8_ieee_p<4> floate4m3;
+    typedef ml_dtypes::float8_ieee_p<3> floate5m2;
     int m, n;
+    std::ofstream recip_file1("./recip_e4m3.csv");
+    std::ofstream recip_file2("./recip_e5m2.csv");
 
     // Default arguments
     m = (argc < 2) ? 5 : atoi(argv[1]);
@@ -510,7 +515,7 @@ int main(int argc, char** argv)
     double er3 = 0;
     double err2 = 0;
 
-    for (int i = 1; i < 2001; i += 1){
+    for (int i = 1; i < 1001; i += 1000){
     srand(i);  // Init random seed
 
     std::cout.precision(10);
@@ -523,9 +528,40 @@ int main(int argc, char** argv)
     err1 += run<float8e4m3fn>(m, n, ml_dtypes::float8_internal::numeric_limits_float8_e4m3fn::max(), static_cast<float>(atoi(argv[3])), i, atoi(argv[4]) == 1);    
     else if(atoi(argv[5]) == 1)
     err2 += run<float8e5m2>(m, n, ml_dtypes::float8_internal::numeric_limits_float8_e5m2::max(), static_cast<float>(atoi(argv[3])), i, atoi(argv[4]) == 1);  
-    else
+    else if(atoi(argv[5]) == 2)
     er3 +=   run<float>(m,n,1.0, static_cast<float>(atoi(argv[3])), i, atoi(argv[4]) == 1);
+    else 
+    er3 += run<int>(m,n,1.0, static_cast<int>(atoi(argv[3])), i, atoi(argv[4]) == 1);
     }
+    floate4m3 val = floate4m3{0.0};
+    for(int i = 0b00000001; i < 0b11111111; i++) {
+        if(i != 0b10000000  & i != 0b01111111){
+            if((i >> 3) & 0b01111){
+                val = floate4m3{std::pow(-1.0, float(i >> 7))*std::pow(2.0,((i >> 3) & 0b01111) - 8)*(1.0 + (1.0/2.0)*float((i>>2) & 0b000001) +  (1.0/4.0)*float((i>>1) & 0b0000001) + (1.0/8.0)*float((i>>0) & 0b00000001))};
+            }
+            else {
+                val = floate4m3{std::pow(-1.0, float(i >> 7))*(std::pow(2.0, -7))*(0.0 + (1.0/2.0)*float((i>>2) & 0b000001) +  (1.0/4.0)*float((i>>1) & 0b0000001) + (1.0/8.0)*float((i>>0) & 0b00000001))};
+            }
+            recip_file1 << std::scientific;
+            recip_file1 << (float(val*(floate4m3{1.0}/val)) - 1.0) << std::endl;
+            if(float(val*(floate4m3{1.0}/val)) - 1.0 != 0.0) std::cout << val << "," << i << std::endl;
+        }
+    }
+    floate5m2 bal = floate5m2{0.0};
+    for(int i = 0b00000001; i < 0b11111111; i++) {
+        if(i != 0b10000000  & i != 0b01111111){
+            if((i >> 2) & 0b011111){
+                bal = floate5m2{std::pow(-1.0, float(i >> 7))*std::pow(2.0,((i >> 2) & 0b011111) - 16)*(1.0 + (1.0/2.0)*float((i>>1) & 0b000001) +  (1.0/4.0)*float((i>>0) & 0b0000001))};
+            }
+            else {
+                bal = floate5m2{std::pow(-1.0, float(i >> 7))*(std::pow(2.0, -15))*(0.0 + (1.0/2.0)*float((i>>1) & 0b000001) +  (1.0/4.0)*float((i>>0) & 0b0000001) )};
+            }
+            recip_file2 << std::scientific;
+            recip_file2 << (float(bal*(floate5m2{1.0}/bal)) - 1.0) << "," << bal << std::endl;
+            if(float(bal*(floate5m2{1.0}/bal)) - 1.0 != 0.0) std::cout << bal << "," << i << std::endl;
+        }
+    }
+
     //run<Eigen::half>(m,n,Eigen::half{1});
     // printf("-----------------------\n");
 
