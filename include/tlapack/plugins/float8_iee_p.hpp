@@ -33,6 +33,22 @@ namespace tlapack {
 
 namespace tlapack {
     namespace traits {
+        template <int p>
+        struct real_type_traits<ml_dtypes::float8_internal::float8_ieee_p<p>, int> {
+            using type = ml_dtypes::float8_internal::float8_ieee_p<p>;
+            constexpr static bool is_real = true;
+        };
+        template <int p>
+        struct complex_type_traits<ml_dtypes::float8_internal::float8_ieee_p<p>, int> {
+            using type = std::complex<ml_dtypes::float8_internal::float8_ieee_p<p>>;
+            constexpr static bool is_complex = false;
+        };
+    }  // namespace traits
+
+  }
+
+namespace tlapack {
+    namespace traits {
         template <>
         struct real_type_traits<ml_dtypes::float8_internal::float8_e5m2, int> {
             using type = ml_dtypes::float8_internal::float8_e5m2;
@@ -89,6 +105,15 @@ inline std::istream& operator>>(std::istream& is, ml_dtypes::float8_e3m4& x)
     float f;
     is >> f;
     x = ml_dtypes::float8_e3m4(x);
+    return is;
+}
+
+template<int p>
+inline std::istream& operator>>(std::istream& is, ml_dtypes::float8_ieee_p<p>& x)
+{
+    float f;
+    is >> f;
+    x = ml_dtypes::float8_ieee_p<p>(x);
     return is;
 }
 
@@ -186,6 +211,53 @@ using namespace tlapack;
     inline float8e3m4 pow(int x, float8e3m4 y)
     {
         return float8e3m4(std::pow(double(x), double(y)));
+    }
+
+
+    //ieee p3109
+    template<int p>
+    inline float8_ieee_p<p> ceil(float8_ieee_p<p> x) noexcept
+    {
+        return float8_ieee_p<p>(ConstexprCeil(double(x)));
+    }
+
+    template<int p>
+    inline float8_ieee_p<p> floor(float8_ieee_p<p> x) noexcept
+    {
+        return float8_ieee_p<p>(-ConstexprCeil(-1 * double(x)));
+    }
+
+    template<int p>
+    inline float8_ieee_p<p> log2(float8_ieee_p<p> x) noexcept
+    {
+        return float8_ieee_p<p>(log(double(x)));
+    }
+
+
+    template<int p>
+    inline float8_ieee_p<p> max(float8_ieee_p<p> x, float8_ieee_p<p> y) noexcept
+    {
+        return x > y ? x : y;
+    }
+
+    template<int p>
+    inline float8_ieee_p<p> min(float8_ieee_p<p> x, float8_ieee_p<p> y) noexcept
+    {
+        return x > y ? y : x;
+    }
+
+
+    template<int p>
+    inline float8_ieee_p<p> sqrt(float8_ieee_p<p> x) noexcept
+    {
+        return float8_ieee_p<p>(std::sqrt(double(x)));
+    }
+
+
+    template<int p>
+    inline float8_ieee_p<p> pow(int x, float8_ieee_p<p> y)
+    {
+        return float8_ieee_p<p>(std::pow(double(x), double(y)));
     }
    
     }

@@ -15,7 +15,7 @@ limitations under the License.
 
 #ifndef ML_DTYPES_FLOAT8_H_
 #define ML_DTYPES_FLOAT8_H_
-#define STOCHASTIC_ROUND
+//#define STOCHASTIC_ROUND
 //#define STOCHASTIC_ARITH            //uncomment this for stochastic rounding for all 8-bit arithmetic operations
 
 // 8-bit Floating Point Interchange Format, as described by
@@ -526,6 +526,8 @@ class float8_ieee_p : public float8_base<float8_ieee_p<p>> {
 
  public:
 
+  EIGEN_DEVICE_FUNC float8_ieee_p(const float& f)
+      : float8_ieee_p(this->ConvertFrom(f)) {}
   explicit EIGEN_DEVICE_FUNC float8_ieee_p(const float8_e5m2& f8)
       : float8_ieee_p(this->ConvertFrom(f8)) {}
   explicit EIGEN_DEVICE_FUNC float8_ieee_p(const float8_e3m4& f8)
@@ -552,6 +554,16 @@ class float8_ieee_p : public float8_base<float8_ieee_p<p>> {
 
   float8_ieee_p<p> operator-(const float8_ieee_p<p>& other) const {
     return Base::operator-(other);
+  }
+
+  enum Ordering : int8_t {
+    kLess = -1,
+    kEquivalent = 0,
+    kGreater = 1,
+    kUnordered = 2,
+  };
+  constexpr bool operator==(const float8_ieee_p<p>& other) const {
+    return Compare(this->derived(), other) == Ordering::kEquivalent;
   }
 
   explicit EIGEN_DEVICE_FUNC operator bool() const { return this->rep() != 0; }
