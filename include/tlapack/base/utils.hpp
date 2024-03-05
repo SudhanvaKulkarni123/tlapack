@@ -26,6 +26,7 @@
     #include "lapack.hh"  // from LAPACK++
 #endif
 
+
 namespace tlapack {
 
 // C++ standard utils:
@@ -316,6 +317,26 @@ namespace traits {
     struct allow_optblas_trait<StrongZero, int> : std::true_type {};
 }  // namespace traits
 #endif  // TLAPACK_USE_LAPACKPP
+
+template <typename T> int get_scaling_unit(T) 
+{
+    return 0;
+}
+template <typename T> float get_float_part(T)
+{
+    return 0.0;
+}
+
+template <typename T> void set_scaling_unit(T,int)
+{
+    return;
+}
+
+template <typename T, typename Q> void set_float_part(T, Q)
+{
+    return;
+}
+
 
 }  // namespace tlapack
 

@@ -15,6 +15,11 @@
 using namespace std;
 using namespace ml_dtypes::float8_internal;
 
+
+
+
+
+
 namespace tlapack {
     namespace traits {
         template <>
@@ -81,6 +86,40 @@ namespace tlapack {
     
   }
 
+namespace tlapack {
+    namespace traits {
+        template <int p>
+        struct real_type_traits<ml_dtypes::block_float8_ieee<p>, int> {
+            using type = ml_dtypes::block_float8_ieee<p>;
+            constexpr static bool is_real = true;
+        };
+        template <int p>
+        struct complex_type_traits<ml_dtypes::block_float8_ieee<p>, int> {
+            using type = std::complex<ml_dtypes::block_float8_ieee<p>>;
+            constexpr static bool is_complex = false;
+        };
+    }  // namespace traits
+
+    template <int p>
+    int get_scaling_unit(ml_dtypes::block_float8_ieee<p> x) {
+        return x.scaling_unit;
+    }
+    template <int p>
+    float get_float_part(ml_dtypes::block_float8_ieee<p> x) {
+        return x.float_part;
+    }
+    template <int p>
+    void set_scaling_unit(ml_dtypes::block_float8_ieee<p> x, int s) {
+        x.scaling_unit = s;
+        return;
+    }
+    template <int p>
+    void set_float_part(ml_dtypes::block_float8_ieee<p> x, ml_dtypes::float8_ieee_p<p> fl) {
+        x.float_part = fl;
+        return;
+    }
+
+  }
 
   // namespace tlapack
 
@@ -88,36 +127,48 @@ inline std::istream& operator>>(std::istream& is, ml_dtypes::float8_e4m3fn& x)
 {
     float f;
     is >> f;
-    x = ml_dtypes::float8_e4m3fn(x);
+    x = ml_dtypes::float8_e4m3fn(f);
     return is;
 }
 
 inline std::istream& operator>>(std::istream& is, ml_dtypes::float8_e5m2& x)
 {
-    float f;
+     float f;
     is >> f;
-    x = ml_dtypes::float8_e5m2(x);
+    x = ml_dtypes::float8_e5m2(f);
     return is;
 }
 
 inline std::istream& operator>>(std::istream& is, ml_dtypes::float8_e3m4& x)
 {
-    float f;
+     float f;
     is >> f;
-    x = ml_dtypes::float8_e3m4(x);
+    x = ml_dtypes::float8_e3m4(f);
     return is;
 }
 
 template<int p>
 inline std::istream& operator>>(std::istream& is, ml_dtypes::float8_ieee_p<p>& x)
 {
-    float f;
+     float f;
     is >> f;
-    x = ml_dtypes::float8_ieee_p<p>(x);
+    x = ml_dtypes::float8_ieee_p<p>(f);
     return is;
 }
 
-  // namespace std
+
+template<int p>
+inline std::istream& operator>>(std::istream& is, ml_dtypes::float8_internal::block_float8_ieee<p>& x)
+{
+     float f;
+    is >> f;
+    x = ml_dtypes::float8_internal::block_float8_ieee<p>(f);
+    return is;
+}
+
+
+
+
 using namespace tlapack;
   namespace ml_dtypes{
     namespace float8_internal {
@@ -259,7 +310,61 @@ using namespace tlapack;
     {
         return float8_ieee_p<p>(std::pow(double(x), double(y)));
     }
+
+
+    //bfp p3109
+    template<int p>
+    inline block_float8_ieee<p> ceil(block_float8_ieee<p> x) noexcept
+    {
+        return block_float8_ieee<p>(ConstexprCeil(double(x)));
+    }
+
+    template<int p>
+    inline block_float8_ieee<p> floor(block_float8_ieee<p> x) noexcept
+    {
+        return block_float8_ieee<p>(-ConstexprCeil(-1 * double(x)));
+    }
+
+    template<int p>
+    inline block_float8_ieee<p> log2(block_float8_ieee<p> x) noexcept
+    {
+        return block_float8_ieee<p>(log(double(x)));
+    }
+
+
+    template<int p>
+    inline block_float8_ieee<p> max(block_float8_ieee<p> x, block_float8_ieee<p> y) noexcept
+    {
+        return double(x) > double(y) ? x : y;
+     
+    }
+
+    template<int p>
+    inline block_float8_ieee<p> min(block_float8_ieee<p> x, block_float8_ieee<p> y) noexcept
+    {
+        return double(x) > double(y) ? y : x;
+    }
+
+
+    template<int p>
+    inline block_float8_ieee<p> sqrt(block_float8_ieee<p> x) noexcept
+    {
+        return block_float8_ieee<p> (std::sqrt(double(x)));
+    }
+
+
+    template<int p>
+    inline block_float8_ieee<p> pow(int x, block_float8_ieee<p> y)
+    {
+        return block_float8_ieee<p> (std::pow(double(x), double(y)));
+    }
+
    
     }
     }
+
+template<int p>
+bool is_bfp(ml_dtypes::block_float8_ieee<p>){
+    return true;
+}
 

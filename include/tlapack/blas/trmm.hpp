@@ -12,6 +12,7 @@
 #define TLAPACK_BLAS_TRMM_HH
 
 #include "tlapack/base/utils.hpp"
+//#include "tlapack/blas/matbal.hpp"
 
 namespace tlapack {
 
@@ -94,6 +95,8 @@ void trmm(Side side,
     tlapack_check_false(diag != Diag::NonUnit && diag != Diag::Unit);
     tlapack_check_false(nrows(A) != ncols(A));
     tlapack_check_false(nrows(A) != ((side == Side::Left) ? m : n));
+
+
 
      std::vector<float> _Mixed(m*n);
     for (int i = 0; i < m ; i++){
