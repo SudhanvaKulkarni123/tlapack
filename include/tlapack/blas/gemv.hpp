@@ -13,6 +13,7 @@
 
 #include "tlapack/base/utils.hpp"
 #include "tlapack/lapack/conjugate.hpp"
+#include "tlapack/blas/vecbal.hpp"
 
 namespace tlapack {
 
@@ -65,6 +66,8 @@ void gemv(Op trans,
     using TA = type_t<matrixA_t>;
     using TX = type_t<vectorX_t>;
     using idx_t = size_type<matrixA_t>;
+
+    vec_balance(x, TX(1.0));
 
     // constants
     const idx_t m =
@@ -143,6 +146,8 @@ void gemv(Op trans,
             y[i] += alpha * tmp;
         }
     }
+        vec_balance(x, TX(1.0));
+
 }
 
 #ifdef TLAPACK_USE_LAPACKPP

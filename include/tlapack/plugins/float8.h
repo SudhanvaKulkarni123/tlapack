@@ -62,7 +62,8 @@ class float8_e5m2fnuz;
 class float8_e6m1;    //need to impleent this
 class float8_e3m4;
 template <int p> class float8_ieee_p;
-class block_float8;
+
+template <int p> class block_float8_ieee;
 
 template <typename Derived>
 class float8_base {
@@ -107,6 +108,7 @@ class float8_base {
   explicit EIGEN_DEVICE_FUNC operator Eigen::half() const {
     return ConvertTo<Eigen::half>(derived());
   }
+
   explicit EIGEN_DEVICE_FUNC operator bool() const {
     return (rep() & 0x7F) != 0;
   }
@@ -139,7 +141,7 @@ class float8_base {
   static inline EIGEN_DEVICE_FUNC Derived ConvertFrom(const double& from);
 
 
-  // Operators via float32.
+  // Operators via float64.
   EIGEN_STRONG_INLINE EIGEN_DEVICE_FUNC Derived
   operator+(const Derived& other) const {
     return Derived{double{derived()} + double{other}};
@@ -568,6 +570,141 @@ class float8_ieee_p : public float8_base<float8_ieee_p<p>> {
 
   explicit EIGEN_DEVICE_FUNC operator bool() const { return this->rep() != 0; }
 };
+
+template <int p>
+class block_float8_ieee {
+  public :
+    float8_ieee_p<p> float_part;
+    int scaling_unit;
+    block_float8_ieee<p>(int scalar, float8_ieee_p<p> fl) {
+      scaling_unit = scalar < -128 ? -128 : scalar > 128 ? 128 : scalar;
+      float_part = fl;
+      
+    }
+
+    template<int q>
+    friend std::ostream& operator<<(std::ostream& os, const block_float8_ieee<q>& bfp);
+
+  private:
+    friend class float8_ieee_p<p>;
+  
+  public :
+  EIGEN_DEVICE_FUNC block_float8_ieee<p>()
+      : block_float8_ieee<p>(static_cast<int>(0.0), float8_ieee_p<p>(0.0)) {}
+  EIGEN_DEVICE_FUNC block_float8_ieee<p>(const block_float8_ieee<p>& bfp)
+      : block_float8_ieee<p>(static_cast<int>(bfp.scaling_unit), float8_ieee_p<p>(bfp.float_part)) {}
+  EIGEN_DEVICE_FUNC block_float8_ieee<p>(const float& f)
+      : block_float8_ieee<p>(f == 0.0 ? 0 : static_cast<int>(log2(f)), float8_ieee_p<p>(f == 0.0 ? 0.0 : f/static_cast<float>(pow(2.0,static_cast<float>(int(log2(f))))))) {}
+  explicit  EIGEN_DEVICE_FUNC block_float8_ieee<p>(const double& f)
+      : block_float8_ieee<p>(f == 0.0 ? 0 : static_cast<int>(log2(f)), float8_ieee_p<p>(f == 0.0 ? 0.0 : f/static_cast<double>(pow(2.0,static_cast<double>(int(log2(f))))))) {}
+   EIGEN_DEVICE_FUNC block_float8_ieee<p>(const int& i)
+      : block_float8_ieee<p>(static_cast<int>(i == 0 ? 0 :log2(static_cast<float>(i))), float8_ieee_p<p>(i == 0 ? 0.0 : static_cast<float>(i)/static_cast<float>(pow(2.0,static_cast<float>(int(log2(static_cast<float>(i)))))))) {}
+  
+  
+  constexpr operator float() {
+    return std::pow(2.0, static_cast<float>(this->scaling_unit))*static_cast<float>(this->float_part);
+  
+  }
+  constexpr operator double() {
+    return std::pow(2.0, static_cast<float>(this->scaling_unit))*static_cast<float>(this->float_part);
+  
+  }
+           
+  constexpr block_float8_ieee<p> operator-() {
+    float_part = -float_part;
+    return *this;
+  }
+  constexpr bool operator== (const block_float8_ieee<p>& other) const {
+    return float_part == other.float_part && scaling_unit == other.scaling_unit;
+  }
+
+  constexpr block_float8_ieee<p> operator+(const block_float8_ieee<p>& other) const {
+  
+    block_float8_ieee<p> to_ret;
+    to_ret.scaling_unit = to_ret.scaling_unit > scaling_unit ? to_ret.scaling_unit : scaling_unit;
+    if(to_ret.scaling_unit != scaling_unit)
+      to_ret.float_part = float8_ieee_p<p>(static_cast<float>(float_part)/static_cast<float>(std::pow(2.0,to_ret.scaling_unit - scaling_unit))) + other.float_part;
+    else
+      to_ret.float_part = float_part + float8_ieee_p<p>(static_cast<float>(other.float_part)/static_cast<float>(std::pow(2.0,to_ret.scaling_unit - other.scaling_unit)));
+    return to_ret;
+  }
+
+  constexpr block_float8_ieee<p> operator-(const block_float8_ieee<p>& other) const {
+    block_float8_ieee<p> to_ret;
+    to_ret.scaling_unit = to_ret.scaling_unit > scaling_unit ? to_ret.scaling_unit : scaling_unit;
+    if(to_ret.scaling_unit != scaling_unit)
+      to_ret.float_part = float8_ieee_p<p>(static_cast<float>(float_part)/static_cast<float>(std::pow(2.0,to_ret.scaling_unit - scaling_unit))) - other.float_part;
+    else
+      to_ret.float_part = float_part - float8_ieee_p<p>(static_cast<float>(other.float_part)/static_cast<float>(std::pow(2.0,to_ret.scaling_unit - other.scaling_unit)));
+    return to_ret;
+  }
+
+  constexpr block_float8_ieee<p> operator*(const block_float8_ieee<p>& other) const {
+    block_float8_ieee<p> to_ret;
+    to_ret.float_part = float_part * other.float_part;
+    to_ret.scaling_unit = to_ret.scaling_unit + scaling_unit;
+    return to_ret;
+  }
+
+  constexpr block_float8_ieee<p> operator/(const block_float8_ieee<p>& other) const {
+    block_float8_ieee<p> to_ret;
+    to_ret.float_part = float_part / other.float_part;
+    to_ret.scaling_unit = to_ret.scaling_unit - scaling_unit;
+    return to_ret;
+  }
+
+  constexpr block_float8_ieee<p> operator+=(const block_float8_ieee<p>& other) {
+    block_float8_ieee<p> final = *this + other;
+    scaling_unit = final.scaling_unit;
+    float_part = final.float_part;
+    return *this;
+  }
+
+  constexpr block_float8_ieee<p> operator*=(const block_float8_ieee<p>& other) {
+    block_float8_ieee<p> final = *this * other;
+    scaling_unit = final.scaling_unit;
+    float_part = final.float_part;
+    return *this;
+  }
+
+  constexpr block_float8_ieee<p> operator/=(const block_float8_ieee<p>& other) {
+    block_float8_ieee<p> final = *this / other;
+    scaling_unit = final.scaling_unit;
+    float_part = final.float_part;
+    return *this;
+  }
+
+  constexpr block_float8_ieee<p> operator-=(const block_float8_ieee<p>& other) {
+    block_float8_ieee<p> final = *this - other;
+    scaling_unit = final.scaling_unit;
+    float_part = final.float_part;
+    return *this;
+  }
+
+   constexpr block_float8_ieee<p> operator=(const block_float8_ieee<p>& other) {
+    float_part = other.float_part;
+    
+    scaling_unit = other.scaling_unit;
+    
+    return *this;
+  }
+
+  constexpr block_float8_ieee<p> operator=(const block_float8_ieee<p>& other) const {
+    return block_float8_ieee<p>(other);
+  }
+    
+
+  
+  
+};
+
+
+template<int p>
+std::ostream& operator<<(std::ostream& os, const block_float8_ieee<p>& bfp)
+{
+    os << "{ exp = " << bfp.scaling_unit  << ", fp = " << bfp.float_part << "value = " << float(std::pow(2,bfp.scaling_unit))*float(bfp.float_part) << "}";
+    return os;
+}
 
 // -----------------------------------------
 
@@ -1672,6 +1809,8 @@ using float8_e3m4 = float8_internal::float8_e3m4;
 using float8_e5m2fnuz = float8_internal::float8_e5m2fnuz;
 template <int p>
 using float8_ieee_p = float8_internal::float8_ieee_p<p>;
+template <int p>
+using block_float8_ieee = float8_internal::block_float8_ieee<p>;
 
 }  // namespace ml_dtypes
 

@@ -13,6 +13,8 @@
 #define MIXED_PREC
 
 #include "tlapack/base/utils.hpp"
+//#include "tlapack/plugins/float8_iee_p.hpp"
+#include "tlapack/blas/matbal.hpp"
 
 
 namespace tlapack {
@@ -88,6 +90,10 @@ void gemm(Op transA,
     tlapack_check_false(
         (idx_t)((transB == Op::NoTrans) ? nrows(B) : ncols(B)) != k);
 
+
+
+    mat_balance(A, Layout::ColMajor, TA(1.0));
+    mat_balance(B, Layout::RowMajor, TB(1.0));
     #ifdef MIXED_PREC
     std::vector<float> MixedMat_(m * n);
     for(int i = 0; i < m; i++){
@@ -230,7 +236,51 @@ void gemm(Op transA,
             }
         }
     }
+
+
+    mat_balance(C, Layout::RowMajor, TA(1.0));
+
 }
+
+
+
+// template <int p,
+//           TLAPACK_MATRIX matrixA_t,
+//           TLAPACK_MATRIX matrixB_t,
+//           TLAPACK_MATRIX matrixC_t,
+//           class T = type_t<matrixC_t>,
+//           disable_if_allow_optblas_t<pair<matrixA_t, T>,
+//                                      pair<matrixB_t, T>,
+//                                      pair<matrixC_t, T> > = 0>
+// void gemm(Op transA,
+//           Op transB,
+//           const block_float8_ieee<p>& alpha,
+//           const matrixA_t& A,
+//           const matrixB_t& B,
+//           const block_float8_ieee<p> beta,
+//           matrixC_t& C) {
+
+//              #ifdef MIXED_PREC
+//             std::vector<float> MixedMat_(m * n);
+//             for(int i = 0; i < m; i++){
+//                 for(int j = 0; j < n; j++){
+//                     MixedMat_[m*j + i] = float(C(i,j));
+//                 }
+//             }
+//             #endif
+
+
+
+
+
+//           }
+
+
+
+
+
+
+
 
 #ifdef TLAPACK_USE_LAPACKPP
 
