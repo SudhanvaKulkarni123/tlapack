@@ -595,27 +595,35 @@ class block_float8_ieee {
       : block_float8_ieee<p>(static_cast<int>(bfp.scaling_unit), float8_ieee_p<p>(bfp.float_part)) {}
   EIGEN_DEVICE_FUNC block_float8_ieee<p>(const float& f)
       : block_float8_ieee<p>(f == 0.0 ? 0 : static_cast<int>(log2(f)), float8_ieee_p<p>(f == 0.0 ? 0.0 : f/static_cast<float>(pow(2.0,static_cast<float>(int(log2(f))))))) {}
-  explicit  EIGEN_DEVICE_FUNC block_float8_ieee<p>(const double& f)
+  EIGEN_DEVICE_FUNC block_float8_ieee<p>(const double& f)
       : block_float8_ieee<p>(f == 0.0 ? 0 : static_cast<int>(log2(f)), float8_ieee_p<p>(f == 0.0 ? 0.0 : f/static_cast<double>(pow(2.0,static_cast<double>(int(log2(f))))))) {}
    EIGEN_DEVICE_FUNC block_float8_ieee<p>(const int& i)
       : block_float8_ieee<p>(static_cast<int>(i == 0 ? 0 :log2(static_cast<float>(i))), float8_ieee_p<p>(i == 0 ? 0.0 : static_cast<float>(i)/static_cast<float>(pow(2.0,static_cast<float>(int(log2(static_cast<float>(i)))))))) {}
   
   
-  constexpr operator float() {
+  constexpr operator float() const {
     return std::pow(2.0, static_cast<float>(this->scaling_unit))*static_cast<float>(this->float_part);
   
   }
-  constexpr operator double() {
+  constexpr operator double() const {
     return std::pow(2.0, static_cast<float>(this->scaling_unit))*static_cast<float>(this->float_part);
   
   }
            
-  constexpr block_float8_ieee<p> operator-() {
-    float_part = -float_part;
-    return *this;
+  constexpr block_float8_ieee<p> operator-() const {
+    block_float8_ieee<p> to_ret;
+    to_ret.float_part = -float_part;
+    to_ret.scaling_unit = scaling_unit;
+    return to_ret;
   }
   constexpr bool operator== (const block_float8_ieee<p>& other) const {
     return float_part == other.float_part && scaling_unit == other.scaling_unit;
+  }
+   constexpr bool operator== (const float& other) const {
+    return float() == other;
+  }
+   constexpr bool operator== (const int& other) const {
+    return float() == float(other);
   }
 
   constexpr block_float8_ieee<p> operator+(const block_float8_ieee<p>& other) const {
@@ -692,6 +700,26 @@ class block_float8_ieee {
   constexpr block_float8_ieee<p> operator=(const block_float8_ieee<p>& other) const {
     return block_float8_ieee<p>(other);
   }
+
+  EIGEN_STRONG_INLINE EIGEN_DEVICE_FUNC bool operator<(
+      const block_float8_ieee<p>& other) const {
+        return float() < float(other);
+  }
+
+  EIGEN_STRONG_INLINE EIGEN_DEVICE_FUNC bool operator>(
+      const block_float8_ieee<p>& other) const {
+        return float() > float(other);
+  }
+
+  EIGEN_STRONG_INLINE EIGEN_DEVICE_FUNC bool operator>=(
+      const block_float8_ieee<p>& other) const {
+        return float() >= float(other);
+  }
+  EIGEN_STRONG_INLINE EIGEN_DEVICE_FUNC bool operator<=(
+      const block_float8_ieee<p>& other) const {
+        return float() <= float(other);
+  }
+
     
 
   
@@ -1206,6 +1234,88 @@ struct numeric_limits_float8_ieee_p : public numeric_limits_float8_base {
   }
 };
 
+
+template<int p>
+struct numeric_limits_block_float8_ieee : public numeric_limits_float8_base {
+ private:
+  static inline constexpr const int kExponentBias = 1 << (7-p);
+  static inline constexpr const int kMantissaBits = p - 1;
+
+ public:
+  // NOLINTBEGIN: these names must match std::numeric_limits.
+  static inline constexpr const int digits = p;
+  static inline constexpr const int digits10 = Digits10FromDigits(digits);
+  static inline constexpr const int max_digits10 =
+      MaxDigits10FromDigits(digits);
+  static inline constexpr const int min_exponent = (1 - kExponentBias) + 1;
+  static inline constexpr const int min_exponent10 =
+      MinExponent10FromMinExponent(min_exponent);
+  static inline constexpr const int max_exponent = kExponentBias - 1;
+  static inline constexpr const int max_exponent10 =
+      MaxExponent10FromMaxExponentAndDigits(max_exponent, digits);
+  static inline constexpr const bool is_iec559 = false; // TODO
+  static inline constexpr const bool has_infinity = true;
+  static inline constexpr const bool has_signaling_NaN = false;
+  // NOLINTEND
+
+  static constexpr block_float8_ieee<p> min() {
+    block_float8_ieee<p> to_ret;
+    to_ret.float_part = float8_ieee_p<p>::FromRep(1<<(p-1));
+    to_ret.scaling_unit = -127;
+    return to_ret;
+  }
+  static constexpr block_float8_ieee<p> lowest() {
+    block_float8_ieee<p> to_ret;
+    to_ret.float_part = numeric_limits_float8_ieee_p<p>::lowest();
+    to_ret.scaling_unit = 127;
+    return to_ret;
+  }
+  static constexpr block_float8_ieee<p> max() {
+     block_float8_ieee<p> to_ret;
+    to_ret.float_part = numeric_limits_float8_ieee_p<p>::max();
+    to_ret.scaling_unit = 127;
+    return to_ret;
+  }
+  static constexpr block_float8_ieee<p> epsilon() {
+    block_float8_ieee<p> to_ret;
+    to_ret.float_part = numeric_limits_float8_ieee_p<p>::epsilon();
+    to_ret.scaling_unit = 0;
+    return to_ret;
+  }
+  static constexpr block_float8_ieee<p> round_error() {
+    // Return 0.5
+    block_float8_ieee<p> to_ret;
+    to_ret.float_part = numeric_limits_float8_ieee_p<p>::round_error();
+    to_ret.scaling_unit = 0;
+    return to_ret;
+  }
+  static constexpr float8_ieee_p<p> infinity() {
+    block_float8_ieee<p> to_ret;
+    to_ret.float_part = numeric_limits_float8_ieee_p<p>::infinity();
+    to_ret.scaling_unit = 0;
+    return to_ret;
+  }
+  static constexpr float8_ieee_p<p> quiet_NaN() {
+    block_float8_ieee<p> to_ret;
+    to_ret.float_part = numeric_limits_float8_ieee_p<p>::quiet_NaN();
+    to_ret.scaling_unit = 0;
+    return to_ret;
+  }
+  static constexpr float8_ieee_p<p> signaling_NaN() {
+    block_float8_ieee<p> to_ret;
+    to_ret.float_part = numeric_limits_float8_ieee_p<p>::signaling_NaN();
+    to_ret.scaling_unit = 0;
+    return to_ret;
+  }
+  static constexpr float8_ieee_p<p> denorm_min() {
+    block_float8_ieee<p> to_ret;
+    to_ret.float_part = numeric_limits_float8_ieee_p<p>::denorm_min();
+    to_ret.scaling_unit = -127;
+    return to_ret;
+  }
+};
+
+
 }  // namespace float8_internal
 }  // namespace ml_dtypes
 
@@ -1238,6 +1348,11 @@ struct numeric_limits<ml_dtypes::float8_internal::float8_e5m2fnuz>
 template <int p>
 struct numeric_limits<ml_dtypes::float8_internal::float8_ieee_p<p>>
     : public ml_dtypes::float8_internal::numeric_limits_float8_ieee_p<p> {};
+
+template <int p>
+struct numeric_limits<ml_dtypes::float8_internal::block_float8_ieee<p>>
+    : public ml_dtypes::float8_internal::numeric_limits_block_float8_ieee<p> {};
+
 
 }  // namespace std
 
@@ -1302,6 +1417,16 @@ constexpr inline bool isnan(const float8_e5m2fnuz& a) {
 template<int p>
 constexpr inline bool(isnan)(const float8_ieee_p<p>& a) {
   return a.rep() == 0x80;
+}
+
+template<int p>
+constexpr inline bool(isnan)(const block_float8_ieee<p>& a) {
+  return isnan(a.float_part);
+}
+
+template<int p>
+constexpr inline bool(isinf)(const block_float8_ieee<p>& a) {
+  return isinf(a.float_part);
 }
 
 template<int p>

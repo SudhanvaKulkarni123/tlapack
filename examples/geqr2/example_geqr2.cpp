@@ -533,11 +533,13 @@ int main(int argc, char** argv)
     //  std::cout << "epsilon" << ml_dtypes::float8_internal::numeric_limits_float8_e4m3fn::epsilon() << std::endl;
     //run<Eigen::bfloat16>(m,n, 1.0, static_cast<float>(i));
     if(atoi(argv[5]) == 0)
-    err1 += run<float8e4m3fn>(m, n, ml_dtypes::float8_internal::numeric_limits_float8_e4m3fn::max(), static_cast<float>(atoi(argv[3])), i, atoi(argv[4]) == 1);    
+    err1 += run<floate4m3>(m, n, ml_dtypes::float8_internal::numeric_limits_float8_ieee_p<4>::max(), static_cast<float>(atoi(argv[3])), i, atoi(argv[4]) == 1);    
     else if(atoi(argv[5]) == 1)
-    err2 += run<float8e5m2>(m, n, ml_dtypes::float8_internal::numeric_limits_float8_e5m2::max(), static_cast<float>(atoi(argv[3])), i, atoi(argv[4]) == 1);  
+    err2 += run<floate5m2>(m, n, ml_dtypes::float8_internal::numeric_limits_float8_ieee_p<3>::max(), static_cast<float>(atoi(argv[3])), i, atoi(argv[4]) == 1);  
     else if(atoi(argv[5]) == 2)
     er3 +=   run<float>(m,n,1.0, static_cast<float>(atoi(argv[3])), i, atoi(argv[4]) == 1);
+    else if(atoi(argv[5]) == 3)
+    er3 += run<bfp>(m,n,bfp(1.0), static_cast<float>(atoi(argv[3])), i, atoi(argv[4]) == 1);
     else 
     er3 += run<int>(m,n,1.0, static_cast<int>(atoi(argv[3])), i, atoi(argv[4]) == 1);
     }
@@ -579,6 +581,6 @@ int main(int argc, char** argv)
     //std::cout << er3 << std::endl;
     //std::cout << float(ml_dtypes::float8_internal::numeric_limits_float8_e4m3fn::infinity()) <<std::endl;
     
-    
+    std::cout << float(er3)/100.0 << std::endl;
     return 0;
 }
