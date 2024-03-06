@@ -1,7 +1,7 @@
 import random
 import numpy as np
 import scipy as sc
-
+import matplotlib.pyplot as plt
 
 a_values = []
 for i in range(255):
@@ -19,7 +19,7 @@ for i in range(255):
                 val1 = -(2.0 ** -7) * (0.0 + (1.0/2.0) * ((i >> 2) & 0b000001) + (1.0/4.0) * ((i >> 1) & 0b0000001) + (1.0/8.0) * ((i >> 0) & 0b00000001))
         
         a_values = [val1] + a_values
-
+a_values.sort()
 
 
 
@@ -72,17 +72,17 @@ def perturb(X, epsilon, is_LU, m):
         J = range(cols- m, cols)
     for i in I:
         for j in J:
-            Y[i,j] = find_closest_value(X[i,j]*(1 + np.random.uniform()*epsilon),a_values)
+            Y[i,j] = find_closest_value(X[i,j]*(1 + np.random.uniform(-1.5,1.5)*epsilon),a_values)
     while abs(np.linalg.det(Y)) <= 0.000000001 :               #regenerate if matrix is close to singular
         for i in I:
             for j in J:
-                Y[i,j] = find_closest_value(X[i,j]*(1 + np.random.uniform()*epsilon),a_values)
+                Y[i,j] = find_closest_value(X[i,j]*(1 + np.random.uniform(-1.5,1.5)*epsilon),a_values)
     # flip = random.randint(0, 1)
     # if flip == 1:
-    #     for i in range(rows):
-    #         for j in range(cols):
+    #     for i in I:
+    #         for j in J:
     #             Y[i,j] = -Y[i,j]
-    return Y, np.linalg.cond(Y[m:,m:])
+    return Y, 0
 
     
 
@@ -103,23 +103,23 @@ def annealing_step(X,T,gamma, lowest, iter, cond, is_LU, m):
         lowest = energy2
     energy2 = 1 - np.exp(-gamma*(energy2 - lowest))
     if energy2 < energy1:
-        T = T/(1 + np.log(num))
+        T = T/(1 + np.log(iter)) 
         return Y , lowest, T
     else:
         ran = np.random.uniform()
         delta = energy2 - energy1
         prob = np.exp(-delta/T)
         if ran < prob:
-            T = T/(1 + np.log(num))
+            T = T/(1 + np.log(iter))
             return Y , lowest , T
         else :
-            T = T/(1 + np.log(num))
+            T = T/(1 + (np.log(iter)))
             return X , lowest , T
 
 
 
 def cond_annealing(n, cond):
-    A_orig = init_matrix(n, 100, False)
+    A_orig = init_matrix(n, cond, False)
     count = 0
     while abs(np.linalg.det(A_orig)) <= 0.0000001 :          #exclude nearly singular matrices
          for i in range(n):
@@ -130,23 +130,24 @@ def cond_annealing(n, cond):
     lowest = float('inf')
     T = 250
     while count < 500 :
-        A , lowest, T = annealing_step(A, T, 1.5 , lowest, count, cond, False, 0)
+        A , lowest, T = annealing_step(A, T, 0.15 , lowest, count, cond, False, 0)
         count = count + 1
         if abs(np.linalg.cond(A) - cond) < cond/10.0:
             return np.linalg.cond(A), count
     
     return np.linalg.cond(A), count        #return only the condition number since I don't want to print out the bigger matrices
 
-def vanilla_LU_gen(n, cond):
-     A_orig = init_matrix(n, 500, True)
-     P,L,U = sc.linalg.lu(A_orig)
-     A = np.matmul(np.transpose(P), A_orig)
-     A[n-1,n-1] = random.choice(a_values)
-     return np.linalg.cond(A)
+def vanilla_LU_gen(A, n, cond, new_val):
+     
+     last = A[n-1,n-1]
+     A[n-1,n-1] = new_val
+     to_ret = np.linalg.cond(A)
+     A[n-1,n-1] = last
+     return [to_ret, new_val - last]
 
-def LU_gen(n,cond,m):
+def LU_gen(n,cond,m, mode):
     #m is dimension of trailing submatrix that we will optimize on
-    A_orig = init_matrix(n, 100, False)
+    A_orig = init_matrix(n, cond, mode)
     for i in range(n):
         for j in range(n):
             A_orig[i,j] = random.choice(a_values)
@@ -158,20 +159,37 @@ def LU_gen(n,cond,m):
     P,L,U = sc.linalg.lu(A_orig)
     A = np.matmul(np.transpose(P), A_orig)
     lowest = float('inf')
-    T = 2500
-    count = 0
+    T = 250
+    count = 1
     while count < 500:
-        A , lowest, T = annealing_step(A, T, 1.5, lowest, count, cond, True, m)
+        A , lowest, T = annealing_step(A, T, 5, lowest, count, cond, True, m)
         count = count + 1
-        if abs(np.linalg.cond(A) - cond) < cond/10.0:
+        if abs(np.linalg.cond(A)/cond) < 1.5 and abs(np.linalg.cond(A)/cond) > 0.66:
             return np.linalg.cond(A), count 
     
     return np.linalg.cond(A), count       #return only the condition number since I don't want to print out the bigger matrices
 
 
 
-print(cond_annealing(100, 10000.0))
+# print(cond_annealing(100, 100.0))
 #print(vanilla_LU_gen(100,100.0))
-print(LU_gen(100,10000.0, 50))
+#print(LU_gen(10,50.0,2, True))
+A_orig = init_matrix(2, 10, True)
+P,L,U = sc.linalg.lu(A_orig)
+A_send = np.matmul(np.transpose(P),A_orig)
+k = a_values.index(A_send[1,1])
+to_use = a_values[k-10:k+11]
+print(to_use[-1])
+z = [vanilla_LU_gen(A_send,2, 10, val) for val in to_use]
+y = [z[j][0] for j in range(len(z))]
+x = [z[j][1] for j in range(len(z))]
+for k in range(len(x)):
+    if x[k] == 0:
+        print(y[k], x[k], k)
+print(x)
+plt.plot(x,y)
+plt.show()
+
+
 
     

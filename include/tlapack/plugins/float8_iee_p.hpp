@@ -359,6 +359,14 @@ using namespace tlapack;
         return block_float8_ieee<p> (std::pow(double(x), double(y)));
     }
 
+    template<int p>
+    inline block_float8_ieee<p> abs(block_float8_ieee<p> y)
+    {
+        block_float8_ieee<p> to_ret = y;
+        to_ret.float_part = abs(y.float_part);
+        return to_ret;
+    }
+
    
     }
     }

@@ -92,8 +92,8 @@ void gemm(Op transA,
 
 
 
-    mat_balance(A, Layout::ColMajor, TA(1.0));
-    mat_balance(B, Layout::RowMajor, TB(1.0));
+    mat_balance(A, Layout::ColMajor, TA(1.0), false, Uplo::General);
+    mat_balance(B, Layout::RowMajor, TB(1.0), false, Uplo::General);
     #ifdef MIXED_PREC
     std::vector<float> MixedMat_(m * n);
     for(int i = 0; i < m; i++){
@@ -238,7 +238,7 @@ void gemm(Op transA,
     }
 
 
-    mat_balance(C, Layout::RowMajor, TA(1.0));
+    mat_balance(C, Layout::RowMajor, TA(1.0), false, Uplo::General);
 
 }
 
