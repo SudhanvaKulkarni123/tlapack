@@ -100,29 +100,20 @@ bool isZero(const matrix_t& A)
 }
 
 //------------------------------------------------------------------------------
-std::ofstream myfile("../e5m2_error_e_cond.csv");
 template <typename real_t>
 double run(size_t m, size_t n, real_t scale, float cond, int name, bool arithmetic)
 {
     using std::size_t;
     using matrix_t = tlapack::LegacyMatrix<real_t>;
-    using matrix_ft = tlapack::LegacyMatrix<float>;
-    using matrix_dt = tlapack::LegacyMatrix<double>;
 
-    //file to store matrix for condition number computation
-    std::ofstream matfile("./mat/" + std::to_string(name) + ".txt");
-    matfile << std::scientific;
-    matfile << n ;
 
-    std::ofstream fmatfile("./fmat/" + std::to_string(name) + ".txt");
-    fmatfile << std::scientific;
-    fmatfile << n ;
+    
 
 
     // Functors for creating new matrices
     tlapack::Create<matrix_t> new_matrix;
-    tlapack::Create<matrix_ft> new_fmatrix;
-    tlapack::Create<matrix_dt> new_dmatrix;
+ 
+
 
     // Turn it off if m or n are large
     bool verbose = false;
@@ -133,32 +124,7 @@ double run(size_t m, size_t n, real_t scale, float cond, int name, bool arithmet
     std::vector<double> tau_buffer(n);
     std::vector<double> tau_buffer2(n);
 
-    std::random_device generator;
-    std::normal_distribution<double> distribution(0.0,1.0);
-    // Matrices
-    std::vector<double> R1_;
-    auto R1 = new_dmatrix(R1_, m, n);
-    std::vector<double> R2_;
-    auto R2 = new_dmatrix(R2_, m, n);
-    for(int j = 0; j < n; ++j){
-        for(int i = 0; i < m; ++i){
-          
-            // R1(i,j) = (static_cast<double>(rand()))/static_cast<double>(RAND_MAX);
-            // R2(i,j) = (static_cast<double>(rand()))/static_cast<double>(RAND_MAX);
-
-            R1(i,j) = distribution(generator);
-            R2(i,j) = distribution(generator);
-            
-        }
-    }
     
-
-
-    
-
-
-
-
 
 
 
@@ -177,13 +143,9 @@ double run(size_t m, size_t n, real_t scale, float cond, int name, bool arithmet
     auto Rf = new_matrix(Rf_, n, n);
     std::vector<float> Qf_;
     auto Qf = new_matrix(Qf_, n, n);
-    std::vector<float> iA_;
-    auto iA = new_matrix(iA_, m, n);
 
-    std::vector<float> S1_;
-    auto S1 = new_fmatrix(S1_,m,n);
-    std::vector<float> S2_;
-    auto S2 = new_fmatrix(S1_,m,n);
+
+
 
     std::vector<float> Scal_(n,0.0);
     std::vector<float> sums(n,0.0);
@@ -194,6 +156,8 @@ double run(size_t m, size_t n, real_t scale, float cond, int name, bool arithmet
             A(i, j) = static_cast<float>(0xDEADBEEF);
             Q(i, j) = static_cast<float>(0xCAFED00D);
             Qf(i, j) = static_cast<float>(0xCAFED00D);
+            FG(i,j) = static_cast<float>(rand())/static_cast<float>(RAND_MAX);
+            FG(i,j) = sqrt(-2.0*log(FG(i,j)))*cos(2.0*M_PI*static_cast<float>(rand())/static_cast<float>(RAND_MAX));
         }
         for (size_t i = 0; i < n; ++i) {
             R(i, j) = static_cast<float>(0xFEE1DEAD);
@@ -205,131 +169,7 @@ double run(size_t m, size_t n, real_t scale, float cond, int name, bool arithmet
 
     
     
-    
-    std::vector<double> iS_(n*m, 0.0);
-    auto iS = new_matrix(iS_, m, n);
-    std::vector<double> iR_(n*m, 0.0);
-    auto iR = new_matrix(iR_, m, n);
- 
-    tlapack::geqr2(R1, tau_buffer);
-    tlapack::ung2r(R1, tau_buffer);
-   tlapack::geqr2(R2, tau_buffer);
-    tlapack::ung2r(R2, tau_buffer);
-    
-
-
-    
-
-    for(int i = 0; i < n; i++){
-        if(arithmetic)
-        iS(i,i) = float(1.0 - float(i)*(1.0 - 1.0/cond)/float(n-1));    //-- this is for a linear distribution of singular values
-        else
-        iS(i,i) = float(std::pow(cond,float(-i)/float(n - 1)));       //-- this is for exponential
-        
-        
-        
-
-    }
-
    
-
-  
-    //now call gemm
-    #ifdef MODE1
-    tlapack::gemm(tlapack::NO_TRANS,tlapack::NO_TRANS,1.0, iS, R1, 0.0, iA);
-    tlapack::gemm(tlapack::NO_TRANS,tlapack::NO_TRANS,1.0, R2, iA, 0.0, FG);
-    writeMatrix(FG, fmatfile);
-   
-    std::vector<float> FG_d;
-    std::vector<float> s_dup(n, 0.0);
-    auto FG_dup = new_matrix(FG_d, m,n);
-    for(int i = 0; i < m; i++){
-        for (int j = 0; j < n; j++){
-            FG_dup(i,j) = static_cast<float>(static_cast<real_t>((FG(i,j))));
-        }
-    }
-
-    writeMatrix(FG_dup, matfile);
-    std::vector<float> AG_d;
-    auto AG_dup = new_fmatrix(AG_d, m,n);
-    std::vector<float> BG_d;
-    auto BG_dup = new_fmatrix(BG_d, m,n);
-    
-   
-    float maxdiff = 0.0;
-    float max_singular = s_dup[0];
-    float min_singular = s_dup[n-1];
-    int count;
-  
-    #else
-    //now need to declare a bunch of FP8 matrices and multiply in FP8
-    std::vector<float> R1_st;
-    auto R1_mat = new_matrix(R1_st, m,n);
-    std::vector<float> R2_st;
-    auto R2_mat = new_matrix(R2_st, m,n);
-    std::vector<float> iS_st;
-    auto iS_mat = new_matrix(iS_st, m,n);
-    std::vector<float> iA_st;
-    auto iA_mat = new_matrix(iA_st, m,n);
-    std::vector<float> FG_st;
-    auto FG_mat = new_matrix(FG_st, m,n);
-   
-    for(int i = 0; i < m; i++){
-        for(int j = 0; j < n; j++){
-            R1_mat(i,j) = static_cast<float>(static_cast<real_t>(R1(i,j)));
-            R2_mat(i,j) = static_cast<float>(static_cast<real_t>(R2(i,j)));
-            iS_mat(i,j) = static_cast<float>(static_cast<real_t>(iS(i,j)));
-            iA_mat(i,j) = static_cast<float>(static_cast<real_t>(iA(i,j)));
-        }
-    }
-
-    std::vector<float> FG_d;
-    std::vector<float> s_dup(n, 0.0);
-    auto FG_dup = new_matrix(FG_d, m,n);
-   
-    tlapack::gemm(tlapack::NO_TRANS,tlapack::NO_TRANS,1.0, iS_mat, R1_mat,0, iA_mat);
-    tlapack::gemm(tlapack::NO_TRANS,tlapack::NO_TRANS,1.0, R2_mat, iA_mat,0, FG_mat);
-    for(int i = 0; i < m; i++){
-        for (int j = 0; j < n; j++){
-            FG(i,j) = static_cast<float>(FG_mat(i,j));
-            FG_dup(i,j) = FG(i,j); 
-        }
-    }
-    for(int i = 0; i < m; i++){
-        for (int j = 0; j < n; j++){
-            FG_dup(i,j) = static_cast<float>(static_cast<real_t>((FG(i,j))));
-        }
-    }
-
-    writeMatrix(FG_dup, matfile);
-
-
-    
-    
-
-
-
-
-    
-
-
-
-
-    for(int i = 0; i < m; i++){
-        for( int j = 0; j < n; j++){
-            sums[j] += abs(FG(i,j));
-        }
-    }
-    #endif
-
-    
-
-    
-    //once that's done, call gemm and use the new matrix
-
-    
-
-    
     
    
     // Frobenius norm of A
@@ -342,16 +182,15 @@ double run(size_t m, size_t n, real_t scale, float cond, int name, bool arithmet
         //Scal_[k] = 1;
     }
     
-    //std::cout << normA;
+   
      for (size_t j = 0; j < n; ++j){
         for (size_t i = 0; i < m; ++i){
             A(i,j) = static_cast<real_t>(FG(i,j)*Scal_[j]);
         }
      }
-      if(isNanorInf(FG)) { std::cout << "FG is NAn or Inf" << std::endl;}
-    if(isZero(FG)) { std::cout << "FG is zero" << std::endl;}
-     if(isNanorInf(A)) { std::cout << "A is NAn or Inf" << std::endl;}
-    if(isZero(A)) { std::cout << "A is zero" << std::endl;}
+
+     printMatrix(FG);
+
 
     // Print A
     if (verbose) {
@@ -359,12 +198,14 @@ double run(size_t m, size_t n, real_t scale, float cond, int name, bool arithmet
         printMatrix(FG);
     }
 
+
     // Copy A to Q
     tlapack::lacpy(tlapack::GENERAL, A, Q);
     tlapack::lacpy(tlapack::GENERAL, FG, Qf);
+    //printMatrix(A);
 
     // 1) Compute A = QR (Stored in the matrix Q)
-
+    
     // Record start time
     auto startQR = std::chrono::high_resolution_clock::now();
     {
@@ -440,8 +281,7 @@ double run(size_t m, size_t n, real_t scale, float cond, int name, bool arithmet
         tlapack::trmm(tlapack::Side::Right, tlapack::Uplo::Upper,
                       tlapack::Op::NoTrans, tlapack::Diag::NonUnit, static_cast<real_t>(1.0), R,
                       work);
-    if(isNanorInf(work)) { std::cout << "work is NAn or Inf" << std::endl;}
-    if(isZero(work)) { std::cout << "work is zero" << std::endl;}
+
         
         std::vector<float> FE_;
         auto FE = new_matrix(FE_, m, n);
@@ -480,17 +320,12 @@ double run(size_t m, size_t n, real_t scale, float cond, int name, bool arithmet
         norm_repres_1 = double(tlapack::lange(tlapack::INF_NORM, FE))/normA ;
         norm_repres_2 = double(tlapack::lange(tlapack::MAX_NORM, FEf))/normQ;
         norm_repres_3 = double(tlapack::lange(tlapack::MAX_NORM, oFEf))/normR;
-        //printMatrix(oFEf);
-        // std::cout << std::endl << "err = ";
-        // printMatrix(FE);
 
-        //check normalization
+
     }
 
     
  
-    myfile << std::scientific;
-    myfile << cond << "," << norm_repres_1 << "," << norm_repres_2 << "," << norm_repres_3 <<  "," << iS(0,0) << "," << iS(n-1,n-1) << "\n";
     return norm_repres_1;
 
     
@@ -507,10 +342,7 @@ int main(int argc, char** argv)
     typedef ml_dtypes::float8_ieee_p<3> floate5m2;
     typedef ml_dtypes::block_float8_ieee<4> bfp;
     int m, n;
-    std::ofstream recip_file1("./recip_e4m3greater.csv");
-    std::ofstream recip_file2("./recip_e5m2greater.csv");
-    std::ofstream recip_file3("./recip_e4m3lesser.csv");
-    std::ofstream recip_file4("./recip_e5m2lesser.csv");
+
 
     // Default arguments
     m = (argc < 2) ? 5 : atoi(argv[1]);
@@ -519,68 +351,30 @@ int main(int argc, char** argv)
     double er3 = 0;
     double err2 = 0;
 
-    for (int i = 1; i < 1001; i += 10){
+    for (int i = 1; i < 1001; i += 501){
     srand(i);  // Init random seed
 
     std::cout.precision(10);
     std::cout << std::scientific << std::showpos;
 
-    // std::cout << bfp{float{5000000000000000005.0}} << std::endl;
-    // std::cout << "err : " <<  (float(bfp{float{50000000000000000005.0}}) - float{5000000000000000005.0})/float{5000000000000000005.0} << std::endl;
-    
-
-    //  printf("run< float8e4m3fn, L >( %d )\n", n);
-    //  std::cout << "epsilon" << ml_dtypes::float8_internal::numeric_limits_float8_e4m3fn::epsilon() << std::endl;
-    //run<Eigen::bfloat16>(m,n, 1.0, static_cast<float>(i));
+   
     if(atoi(argv[5]) == 0)
-    err1 += run<floate4m3>(m, n, ml_dtypes::float8_internal::numeric_limits_float8_ieee_p<4>::max(), static_cast<float>(atoi(argv[3])), i, atoi(argv[4]) == 1);    
+    er3 += run<floate4m3>(m, n, ml_dtypes::float8_internal::numeric_limits_float8_ieee_p<4>::max(), static_cast<float>(atoi(argv[3])), i, atoi(argv[4]) == 1);    
     else if(atoi(argv[5]) == 1)
-    err2 += run<floate5m2>(m, n, ml_dtypes::float8_internal::numeric_limits_float8_ieee_p<3>::max(), static_cast<float>(atoi(argv[3])), i, atoi(argv[4]) == 1);  
+    er3 += run<floate5m2>(m, n, ml_dtypes::float8_internal::numeric_limits_float8_ieee_p<3>::max(), static_cast<float>(atoi(argv[3])), i, atoi(argv[4]) == 1);  
     else if(atoi(argv[5]) == 2)
     er3 +=   run<float>(m,n,1.0, static_cast<float>(atoi(argv[3])), i, atoi(argv[4]) == 1);
     else if(atoi(argv[5]) == 3)
     er3 += run<bfp>(m,n,bfp(1.0), static_cast<float>(atoi(argv[3])), i, atoi(argv[4]) == 1);
+    else if(atoi(argv[5]) == 4)
+    er3 += run<float8e4m3fn>(m, n, ml_dtypes::float8_internal::numeric_limits_float8_e4m3fn::max(), static_cast<float>(atoi(argv[3])), i, atoi(argv[4]) == 1);    
     else 
     er3 += run<int>(m,n,1.0, static_cast<int>(atoi(argv[3])), i, atoi(argv[4]) == 1);
     }
     
             
             
-            //if(float(bal1*(floate5m2{1.0}/bal2)) - 1.0 != 0.0) std::cout << bal1 << << "," << i << std::endl;
-            
-
-    /*
-    generate QA by SLARGE LAPACK routine 
-    try to choose random householder in 8-bit
-    */
-            
-        
-    
-
-    //run<Eigen::half>(m,n,Eigen::half{1});
-    // printf("-----------------------\n");
-
-    // printf("run< float  >( %d, %d )", m, n);
-
-    // er3 += run<float>(m, n, 1.0, 100.0);
-    // printf("-----------------------\n");
-
-    // printf("run< double >( %d, %d )", m, n);
-    // run<double>(m, n);
-    // printf("-----------------------\n");
-
-    // printf("run< long double >( %d, %d )", m, n);
-    // run<long double>(m, n);
-    // printf("-----------------------\n");
-    // std::cout << "e4m3" << std::endl;
-    // std::cout << err1 << std::endl;
-    // std::cout << "e5m2" << std::endl;
-    // std::cout << err2 << std::endl;
-    // std::cout << "float32" << std::endl;
-    // std::cout << er3 << std::endl;
-    //std::cout << er3 << std::endl;
-    //std::cout << float(ml_dtypes::float8_internal::numeric_limits_float8_e4m3fn::infinity()) <<std::endl;
-    
-    std::cout << float(er3)/100.0 << std::endl;
+          
+   std::cout << float(er3) << std::endl;
     return 0;
 }
