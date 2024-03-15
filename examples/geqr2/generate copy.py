@@ -40,6 +40,10 @@ def random_orthog(n):
     Q, R = np.linalg.qr(H)
     return Q
 
+def cond_estim(A):
+    #estimates condition nummber of A = LU
+    return
+
 
 def init_matrix(dim, cond, is_geom):
     #this function generates a matrix of given condition number in float32 using SVD.
@@ -77,6 +81,8 @@ def perturb(X, epsilon, is_LU, m):
         for i in I:
             for j in J:
                 Y[i,j] = find_closest_value(X[i,j]*(1 + np.random.uniform(-1.5,1.5)*epsilon),a_values)
+    P,L,U = sc.linalg.lu(Y[-m:,-m:])
+    Y[-m:,-m:] = np.matmul(np.transpose(P),Y[-m:,-m:])
     # flip = random.randint(0, 1)
     # if flip == 1:
     #     for i in I:
@@ -173,14 +179,16 @@ def LU_gen(n,cond,m, mode):
 
 # print(cond_annealing(100, 100.0))
 #print(vanilla_LU_gen(100,100.0))
-#print(LU_gen(10,50.0,2, True))
-A_orig = init_matrix(2, 10, True)
+#print(LU_gen(100,100.0,20, True))
+A_orig = init_matrix(10, 100, True)
+print("original condition number")
+print(np.linalg.cond(A_orig))
 P,L,U = sc.linalg.lu(A_orig)
 A_send = np.matmul(np.transpose(P),A_orig)
-k = a_values.index(A_send[1,1])
+k = a_values.index(A_send[4,4])
 to_use = a_values[k-10:k+11]
 print(to_use[-1])
-z = [vanilla_LU_gen(A_send,2, 10, val) for val in to_use]
+z = [vanilla_LU_gen(A_send,5, 10, val) for val in to_use]
 y = [z[j][0] for j in range(len(z))]
 x = [z[j][1] for j in range(len(z))]
 for k in range(len(x)):

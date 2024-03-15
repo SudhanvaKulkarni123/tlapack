@@ -238,7 +238,7 @@ void gemm(Op transA,
     }
 
 
-    mat_balance(C, Layout::RowMajor, TA(1.0), false, Uplo::General);
+    //mat_balance(C, Layout::RowMajor, TA(1.0), false, Uplo::General);
 
 }
 

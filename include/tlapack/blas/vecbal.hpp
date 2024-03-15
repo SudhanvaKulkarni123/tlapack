@@ -8,8 +8,9 @@ namespace tlapack {
    template <typename vector_Xt, typename real_t>
    void vec_balance(vector_Xt& X, real_t a) {
      using idx_t = size_type<vector_Xt>;
+     using TX = type_t<vector_Xt>;
     const idx_t m = X.n;
-
+   
 
     int max_exp = 0;
     

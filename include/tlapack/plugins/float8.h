@@ -629,7 +629,7 @@ class block_float8_ieee {
   constexpr block_float8_ieee<p> operator+(const block_float8_ieee<p>& other) const {
   
     block_float8_ieee<p> to_ret;
-    to_ret.scaling_unit = to_ret.scaling_unit > scaling_unit ? to_ret.scaling_unit : scaling_unit;
+    to_ret.scaling_unit = other.scaling_unit > scaling_unit ? other.scaling_unit : scaling_unit;
     if(to_ret.scaling_unit != scaling_unit)
       to_ret.float_part = float8_ieee_p<p>(static_cast<float>(float_part)/static_cast<float>(std::pow(2.0,to_ret.scaling_unit - scaling_unit))) + other.float_part;
     else
@@ -639,7 +639,7 @@ class block_float8_ieee {
 
   constexpr block_float8_ieee<p> operator-(const block_float8_ieee<p>& other) const {
     block_float8_ieee<p> to_ret;
-    to_ret.scaling_unit = to_ret.scaling_unit > scaling_unit ? to_ret.scaling_unit : scaling_unit;
+    to_ret.scaling_unit = other.scaling_unit > scaling_unit ? other.scaling_unit : scaling_unit;
     if(to_ret.scaling_unit != scaling_unit)
       to_ret.float_part = float8_ieee_p<p>(static_cast<float>(float_part)/static_cast<float>(std::pow(2.0,to_ret.scaling_unit - scaling_unit))) - other.float_part;
     else
@@ -657,7 +657,7 @@ class block_float8_ieee {
   constexpr block_float8_ieee<p> operator/(const block_float8_ieee<p>& other) const {
     block_float8_ieee<p> to_ret;
     to_ret.float_part = float_part / other.float_part;
-    to_ret.scaling_unit = to_ret.scaling_unit - scaling_unit;
+    to_ret.scaling_unit = -other.scaling_unit + scaling_unit;
     return to_ret;
   }
 
@@ -719,6 +719,8 @@ class block_float8_ieee {
       const block_float8_ieee<p>& other) const {
         return float() <= float(other);
   }
+
+  
 
     
 

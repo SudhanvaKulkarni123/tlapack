@@ -13,6 +13,11 @@ template <typename matrix_At, typename real_t>
     using TA = type_t<matrix_At>;
     const idx_t m = nrows(A);
     const idx_t n = ncols(A);
+    for(int i = 0; i < m; i++) {
+      for(int j = 0; j < n; j++) {
+         A(i,j) = TA(float(A(i,j)));
+      }
+    }
 
     int max_exp = 0;
 

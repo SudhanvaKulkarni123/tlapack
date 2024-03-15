@@ -189,7 +189,6 @@ double run(size_t m, size_t n, real_t scale, float cond, int name, bool arithmet
         }
      }
 
-     printMatrix(FG);
 
 
     // Print A
@@ -359,20 +358,48 @@ int main(int argc, char** argv)
 
    
     if(atoi(argv[5]) == 0)
-    er3 += run<floate4m3>(m, n, ml_dtypes::float8_internal::numeric_limits_float8_ieee_p<4>::max(), static_cast<float>(atoi(argv[3])), i, atoi(argv[4]) == 1);    
+    er3 += run<floate4m3>(m, n, ml_dtypes::float8_internal::numeric_limits_float8_ieee_p<4>::max()/floate4m3(2.0), static_cast<float>(atoi(argv[3])), i, atoi(argv[4]) == 1);    
     else if(atoi(argv[5]) == 1)
     er3 += run<floate5m2>(m, n, ml_dtypes::float8_internal::numeric_limits_float8_ieee_p<3>::max(), static_cast<float>(atoi(argv[3])), i, atoi(argv[4]) == 1);  
     else if(atoi(argv[5]) == 2)
     er3 +=   run<float>(m,n,1.0, static_cast<float>(atoi(argv[3])), i, atoi(argv[4]) == 1);
     else if(atoi(argv[5]) == 3)
-    er3 += run<bfp>(m,n,bfp(1.0), static_cast<float>(atoi(argv[3])), i, atoi(argv[4]) == 1);
+    er3 += run<bfp>(m,n,bfp(1000.0), static_cast<float>(atoi(argv[3])), i, atoi(argv[4]) == 1);
     else if(atoi(argv[5]) == 4)
     er3 += run<float8e4m3fn>(m, n, ml_dtypes::float8_internal::numeric_limits_float8_e4m3fn::max(), static_cast<float>(atoi(argv[3])), i, atoi(argv[4]) == 1);    
     else 
     er3 += run<int>(m,n,1.0, static_cast<int>(atoi(argv[3])), i, atoi(argv[4]) == 1);
     }
     
-            
+    using matrix_t = tlapack::LegacyMatrix<bfp>;
+    std::vector<bfp> A_;
+    std::vector<bfp> B_;
+    std::vector<bfp> C_;
+    tlapack::Create<matrix_t> new_matrix;
+    auto A = new_matrix(A_,3,3);
+    auto B = new_matrix(B_,3,3);
+    auto C = new_matrix(C_,3,3);
+    for(int i =0; i < 3;i++){
+        for( int j = 0; j < 3; j++){
+            A(i,j) = bfp(5.0);
+            B(i,j) = bfp(5.0);
+        }
+    }
+    std::cout << "A:" << std::endl;
+    printMatrix(A);
+    std::cout << "B:" << std::endl;
+    printMatrix(B);
+    std::cout << "C:" << std::endl;
+    printMatrix(C);
+    gemm(tlapack::NO_TRANS, tlapack::NO_TRANS, bfp(1.0),A,B,bfp(0.0),C);
+    std::cout << "A:" << std::endl;
+    printMatrix(A);
+    std::cout << "B:" << std::endl;
+    printMatrix(B);
+    std::cout << "B:" << std::endl;
+    printMatrix(C);
+
+
             
           
    std::cout << float(er3) << std::endl;
