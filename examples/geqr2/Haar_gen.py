@@ -8,4 +8,5 @@ def get_norm_mat(n):
         a = a + [b]
     return np.matrix(a)
 
-print(get_norm_mat(3))
+A = get_norm_mat(3)
+U,s,V = np.linalg.svd(A, full_matrices=True)

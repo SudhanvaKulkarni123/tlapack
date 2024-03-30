@@ -18,6 +18,15 @@ endif()
 add_executable( example_lu example_lu.cpp )
 target_link_libraries( example_lu PRIVATE tlapack )
 
+# add example morrison
+add_executable( example_morrison example_morrison.cpp )
+target_link_libraries( example_morrison PRIVATE tlapack )
+
+# add vanilla IR
+add_executable( example_nilla_IR example_nilla_IR.cpp )
+target_link_libraries( example_nilla_IR PRIVATE tlapack )
+
+
 #-------------------------------------------------------------------------------
 # Search for MPFR library
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
@@ -31,3 +40,6 @@ if( MPFR_FOUND AND GMP_FOUND )
   target_link_libraries( example_lu PRIVATE ${MPFR_LIBRARIES} ${GMP_LIBRARIES} ) 
   
 endif()
+find_package(PythonLibs REQUIRED)
+include_directories(${PYTHON_INCLUDE_DIRS})
+target_link_libraries(example_nilla_IR PRIVATE ${PYTHON_LIBRARIES})

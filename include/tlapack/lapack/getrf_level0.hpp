@@ -95,10 +95,23 @@ int getrf_level0(matrix_t& A, piv_t& piv)
             A(i, j) /= A(j, j);
         }
 
+        std::vector<float> buffer_vec(n*n);
+        for(int i = 0; i < n; i++) {
+            for(int j = 0; j < n; j++) {
+                buffer_vec[i + n*j] = float(A(i,j));
+            }
+        }
+
         // update the submatrix A(j+1:m-1,j+1:n-1)
         for (idx_t row = j + 1; row < m; row++) {
             for (idx_t col = j + 1; col < n; col++) {
-                A(row, col) -= A(row, j) * A(j, col);
+                buffer_vec[row + n*col] -= float(A(row, j)) * float(A(j, col));
+            }
+        }
+
+        for (idx_t row = j + 1; row < m; row++) {
+            for (idx_t col = j + 1; col < n; col++) {
+                A(row, col) = real_t(buffer_vec[row + n*col]);
             }
         }
     }

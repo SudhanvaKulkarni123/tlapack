@@ -15,7 +15,7 @@ limitations under the License.
 
 #ifndef ML_DTYPES_FLOAT8_H_
 #define ML_DTYPES_FLOAT8_H_
-//#define STOCHASTIC_ROUND
+#define STOCHASTIC_ROUND
 //#define STOCHASTIC_ARITH            //uncomment this for stochastic rounding for all 8-bit arithmetic operations
 
 // 8-bit Floating Point Interchange Format, as described by

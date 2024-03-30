@@ -10,6 +10,7 @@
 
 #ifndef TLAPACK_BLAS_GEMV_HH
 #define TLAPACK_BLAS_GEMV_HH
+#define MIXED_PREC
 
 #include "tlapack/base/utils.hpp"
 #include "tlapack/lapack/conjugate.hpp"
@@ -57,7 +58,7 @@ template <TLAPACK_MATRIX matrixA_t,
                                      pair<beta_t, T> > = 0>
 void gemv(Op trans,
           const alpha_t& alpha,
-          const matrixA_t& A,
+          matrixA_t& A,
           const vectorX_t& x,
           const beta_t& beta,
           vectorY_t& y)
@@ -67,6 +68,7 @@ void gemv(Op trans,
     using TX = type_t<vectorX_t>;
     using idx_t = size_type<matrixA_t>;
 
+    mat_balance(A, Layout::RowMajor, TA(1.0), false, Uplo::General);
     vec_balance(x, TX(1.0));
 
     // constants

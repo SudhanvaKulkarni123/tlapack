@@ -57,9 +57,9 @@ void ger(const alpha_t& alpha,
     tlapack_check_false(size(y) != n);
 
     for (idx_t j = 0; j < n; ++j) {
-        const scalar_t tmp = alpha * conj(y[j]);
+        const float tmp = float(alpha) * float(conj(y[j]));
         for (idx_t i = 0; i < m; ++i)
-            A(i, j) += x[i] * tmp;
+            A(i, j) += scalar_t(float(x[i]) * tmp);
     }
 }
 

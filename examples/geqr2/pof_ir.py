@@ -133,7 +133,7 @@ def Q_update(Q, k):
 
 
 # Example: Calculate relative error for a random 5-by-5 matrix
-n = 10
+n = 4
 random_matrix = generate_random_matrix(n)
 higher_random_matrix = np.float64(random_matrix)
 Q1, R1 = np.linalg.qr(higher_random_matrix, 'complete')

@@ -10,7 +10,7 @@
 
 #ifndef TLAPACK_BLAS_TRSM_HH
 #define TLAPACK_BLAS_TRSM_HH
-#define MIXED_PREC
+//#define MIXED_PREC
 #include "tlapack/base/utils.hpp"
 
 namespace tlapack {
