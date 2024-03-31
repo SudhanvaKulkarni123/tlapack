@@ -46,6 +46,9 @@ def FourOne(cond, n, choice):
         Q[n-1,i]  = (1.0/cond)*Q[n-1,i]
     return Q + alpha*np.outer(Q[l,:],y)
 
+
+
+
 a = FourOne(100.0,100,"Hartley")
 print(np.linalg.cond(a))
 print(np.linalg.cond(np.float32(round(a))))

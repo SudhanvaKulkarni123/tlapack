@@ -4,6 +4,8 @@
 #include "tlapack/base/utils.hpp"
 #include "tlapack/blas/gemv.hpp"
 #include "tlapack/blas/dot.hpp"
+#include "tlapack/blas/axpy.hpp"
+#include "tlapack/blas/nrm2.hpp"
 /**
 * @param[in] A $op(A)$ is an m-by-k matrix.
 **/
@@ -15,7 +17,9 @@ namespace tlapack {
         for(int i = 1; i < A.rows(); i++){
             gemv(tlapack::NO_TRANS, 1.0, A, q, v);
             for(int j = 0; j < i; j++) {
-                H(j,i-1) = 
+                H(j,i-1) = dot(q,q);
+
+
 
             }
         }

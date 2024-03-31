@@ -12,9 +12,26 @@
 #ifndef TLAPACK_GEQR2_HH
 #define TLAPACK_GEQR2_HH
 
+//#define TESTSCALING
+
 #include "tlapack/base/utils.hpp"
 #include "tlapack/lapack/larf.hpp"
 #include "tlapack/lapack/larfg.hpp"
+
+
+template <typename matrix_t>
+bool isNanorInf(const matrix_t& A)
+{
+    int m = tlapack::nrows(A);
+    int n = tlapack::ncols(A);
+    bool to_ret = false;
+    for(int i = 0; i < m ; i ++){
+    for(int j = 0 ; j < n; j++) {
+        to_ret = to_ret | isnan(A(i,j)) | isinf(A(i,j));
+    }
+    }
+    return to_ret;
+}
 
 namespace tlapack {
 
@@ -57,7 +74,7 @@ constexpr WorkInfo geqr2_worksize(const matrix_t& A, const vector_t& tau)
 template <TLAPACK_SMATRIX matrix_t,
           TLAPACK_VECTOR vector_t,
           TLAPACK_WORKSPACE work_t>
-int geqr2_work(matrix_t& A, vector_t& tau, work_t& work)
+int geqr2_work(matrix_t& A, vector_t& tau, work_t& work, std::vector<float>& scal)
 {   
     using namespace std;
     using idx_t = size_type<matrix_t>;
@@ -73,16 +90,52 @@ int geqr2_work(matrix_t& A, vector_t& tau, work_t& work)
 
     // quick return
     if (n <= 0 || m <= 0) return 0;
-    #ifdef TESTSCALING
-    // int count = 0;          //parameter to set for how often we scale the matrix
-    // vector<float> SM_(n, 1.0);
-    // auto ScalMat = new_matrix(SM_, n, n);   //diagonal matrix that we'll multiply to the right of our matrix so that we end up with QRD instead of QR
-    // for(int i = 0 ; i < n; i++){
-    //     ScalMat(i,i) = 1;
-    // }
-    #endif
+    
     for (idx_t i = 0; i < k; ++i) {
+       
+        #ifdef TESTSCALING
+        
+        
+
+        if(i%1 == 0) {
+        using real_t = type_t<matrix_t>;
+        std::vector<float> maxes(n, 0.0);
+        std::vector<float> sums(n, 0.0);
+
+        for(int i =0; i < m; i++) {
+        for(int j = 0; j <n; j++){
+            sums[j] += float(abs(A(i,j)));
+        }
+    }
+        
+
+        for (size_t t = 0; t < m; ++t){
+            for (size_t j = 0; j < n; ++j){
+                maxes[j] = abs(float(A(t,j))) > maxes[j] ? abs(float(A(t,j))) : maxes[j];
+            }
+        }
+       
+            
+        for(int t = 0; t < n; t++){
+        if(sums[t] != 0) scal[t] *= sqrt(0.125)/sums[t];
+        //if(maxes[t] != 0) scal[t] *= float((maxes[t]));
+        //Scal_[k] = 1;
+        }
+    
+   
+        for (size_t j = 0; j < n; ++j){
+            for (size_t t = 0; t < m; ++t){
+                //if(maxes[j] != 0) A(t,j) = A(t,j)/real_t((maxes[j]));
+                if(sums[j] != 0) A(t,j) = A(t,j)/real_t((sums[j]));
+            }
+        }
+
+        }
+
+        #endif
+
         // Define v := A[i:m,i]
+
         auto v = slice(A, range{i, m}, i);
 
         // Generate the (i+1)-th elementary Householder reflection on v
@@ -90,10 +143,7 @@ int geqr2_work(matrix_t& A, vector_t& tau, work_t& work)
 
         // Define C := A[i:m,i+1:n]
         auto C = slice(A, range{i, m}, range{i + 1, n});
-        #ifdef TESTSCALING
-        // diagscal()
-
-        #endif
+        
         // C := ( I - conj(tau_i) v v^H ) C
         larf_work(LEFT_SIDE, FORWARD, COLUMNWISE_STORAGE, v, conj(tau[i]), C,
                   work);
@@ -140,7 +190,7 @@ int geqr2_work(matrix_t& A, vector_t& tau, work_t& work)
  * @ingroup alloc_workspace
  */
 template <TLAPACK_SMATRIX matrix_t, TLAPACK_VECTOR vector_t>
-int geqr2(matrix_t& A, vector_t& tau)
+int geqr2(matrix_t& A, vector_t& tau, std::vector<float>& scal)
 {
     using idx_t = size_type<matrix_t>;
     using T = type_t<matrix_t>;
@@ -160,7 +210,7 @@ int geqr2(matrix_t& A, vector_t& tau)
     std::vector<T> work_;
     auto work = new_matrix(work_, workinfo.m, workinfo.n);
 
-    return geqr2_work(A, tau, work);
+    return geqr2_work(A, tau, work, scal);
 }
 
 }  // namespace tlapack

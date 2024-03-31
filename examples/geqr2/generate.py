@@ -69,7 +69,7 @@ def annealing_step(X,T,gamma, lowest, iter):
         lowest = energy2
     energy2 = 1 - np.exp(-gamma*(energy2 - lowest))
     if energy2 < energy1:
-        T = T/(1 + np.log(1 + iter))
+        T = T/(1 + np.log(1 + iter)/c)
         return Y , lowest, T
     else:
         ran = np.random.uniform()
