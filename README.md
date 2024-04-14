@@ -3,9 +3,11 @@
 This is a fork of the original [\<T\>LAPACK] repo and contains some work on testing th effectiveness of 8-bit floats on HouseholderQR (geqr2) and Gaussian Elim w Partial Pivoting (getrf). This is achieve by scaling, mixed precision BLAS, block floating point and other strategies. We are also testing how useful these low-precision solutions can be in Iterative refinement schemes.
 
 ## relevant files
+
 \<T\>LAPACK is a large project and not all files/algorithms are required for this study. 
 Most of the required work can be found in the include/plugins, include/blas, examples/geqr2 and examples/lu directories.
 For context, I will leave the original README below.
+
 =======
 [![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://github.com/tlapack/tlapack/blob/master/LICENSE)
 [![Continuous Testing](https://github.com/tlapack/tlapack/actions/workflows/cmake.yml/badge.svg?branch=master)](https://github.com/tlapack/tlapack/actions/workflows/cmake.yml)
