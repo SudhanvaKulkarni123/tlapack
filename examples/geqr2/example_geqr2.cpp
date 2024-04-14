@@ -30,6 +30,7 @@
 #include <tlapack/lapack/ung2r.hpp>
 #include <tlapack/lapack/getrf.hpp>
 #include <tlapack/plugins/float8_iee_p.hpp>
+
 //#include <../eigen/Eigen>
 // C++ headers
 #include <chrono>  // for high_resolution_clock
@@ -84,6 +85,8 @@ void readMatrix(matrix_t& A, std::ifstream& file)
         }
     }
 }
+
+
 
 // template <typename matrix_t>
 // bool isNanorInf(const matrix_t& A)
@@ -333,7 +336,6 @@ double run(size_t m, size_t n, real_t scale, float cond, int name, bool arithmet
                 FE(i, j) = float(work(i,j))/Scal_[j] - FG(i, j);
                 FEf(i, j) = Qf(i,j) - float(Q(i,j));
                 oFEf(i, j) = Rf(i,j) - float(R(i,j))/Scal_[j];
-   
           
             }
          if (verbose) {
@@ -380,8 +382,13 @@ int main(int argc, char** argv)
     typedef ml_dtypes::float8_e5m2 float8e5m2;
     typedef ml_dtypes::float8_ieee_p<4> floate4m3;
     typedef ml_dtypes::float8_ieee_p<3> floate5m2;
-    typedef ml_dtypes::block_float8_ieee<4> bfp;
+    typedef ml_dtypes::block_float8_ieee<4> bfp4;
+    typedef ml_dtypes::block_float8_ieee<3> bfp3;
+
     int m, n;
+
+    
+
 
 
     // Default arguments
@@ -393,7 +400,8 @@ int main(int argc, char** argv)
 
     std::ifstream f;
 
-    for (int i = 1; i < 1001; i += 2000){
+
+    for (int i = 1; i < 1001; i += 50){
     srand(atoi(argv[3]) + i);  // Init random seed
 
     std::cout.precision(10);
@@ -407,23 +415,25 @@ int main(int argc, char** argv)
     else if(atoi(argv[5]) == 2)
     er3 +=   run<float>(m,n,1.0, static_cast<float>(atoi(argv[3])), i, atoi(argv[4]) == 1);
     else if(atoi(argv[5]) == 3)
-    er3 += run<bfp>(m,n,bfp(1000.0), static_cast<float>(atoi(argv[3])), i, atoi(argv[4]) == 1);
+    er3 += run<bfp4>(m,n,bfp4(1000.0), static_cast<float>(atoi(argv[3])), i, atoi(argv[4]) == 1);
     else if(atoi(argv[5]) == 4)
     er3 += run<float8e4m3fn>(m, n, ml_dtypes::float8_internal::numeric_limits_float8_e4m3fn::max(), static_cast<float>(atoi(argv[3])), i, atoi(argv[4]) == 1);    
     else 
     er3 += run<int>(m,n,1.0, static_cast<int>(atoi(argv[3])), i, atoi(argv[4]) == 1);
     }
     
-    using matrix_t = tlapack::LegacyMatrix<bfp>;
-    std::vector<bfp> A_;
-    std::vector<bfp> B_;
-    std::vector<bfp> C_;
-    tlapack::Create<matrix_t> new_matrix;
-    
+    // using matrix_t = tlapack::LegacyMatrix<bfloat>;
+    // std::vector<bfloat> A_;
+    // std::vector<bfloat> B_;
+    // std::vector<bfloat> C_;
+    // tlapack::Create<matrix_t> new_matrix;
+
+    // auto A = new_matrix(A_, 5, 5);
+    // auto B = new_matrix(B_, 5, 5);
+    // auto C = new_matrix(C_, 5, 5);
+    // tlapack::gemm(tlapack::NO_TRANS, tlapack::NO_TRANS, bfloat{1.0},A, B, C);
     
 
-            
           
-   std::cout << float(er3) << std::endl;
-    return 0;
+   std::cout << float(er3/20.0) << std::endl;
 }

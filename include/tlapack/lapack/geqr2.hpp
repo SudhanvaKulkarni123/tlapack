@@ -18,7 +18,6 @@
 #include "tlapack/lapack/larf.hpp"
 #include "tlapack/lapack/larfg.hpp"
 
-
 template <typename matrix_t>
 bool isNanorInf(const matrix_t& A)
 {
@@ -32,6 +31,7 @@ bool isNanorInf(const matrix_t& A)
     }
     return to_ret;
 }
+
 
 namespace tlapack {
 
@@ -92,6 +92,7 @@ int geqr2_work(matrix_t& A, vector_t& tau, work_t& work, std::vector<float>& sca
     if (n <= 0 || m <= 0) return 0;
     
     for (idx_t i = 0; i < k; ++i) {
+        bool for_debug = isNanorInf(A);
        
         #ifdef TESTSCALING
         
@@ -137,16 +138,28 @@ int geqr2_work(matrix_t& A, vector_t& tau, work_t& work, std::vector<float>& sca
         // Define v := A[i:m,i]
 
         auto v = slice(A, range{i, m}, i);
+        auto max_v = 0.0;
+        auto min_v = 99999999.0;
+        auto normv = 0.0;
+        for(int j = i; j < m; j++) {
+            max_v = max_v > float(abs(v[j - i])) ? max_v : float(abs(v[j - i])) ;
+            min_v = min_v < float(abs(v[j - i])) ? min_v : float(abs(v[j - i])) ;
+            normv = normv + float(v[j - i])*float(v[j - i]);
+        }
+        
 
         // Generate the (i+1)-th elementary Householder reflection on v
         larfg(FORWARD, COLUMNWISE_STORAGE, v, tau[i]);
 
         // Define C := A[i:m,i+1:n]
         auto C = slice(A, range{i, m}, range{i + 1, n});
-        
+        //we can cast everything to 32 here, including the bigger matrix. 
         // C := ( I - conj(tau_i) v v^H ) C
         larf_work(LEFT_SIDE, FORWARD, COLUMNWISE_STORAGE, v, conj(tau[i]), C,
                   work);
+        //need to insert some kind of normalization function just like the bfp case
+        //run normalization algorithm and cast back to 8 or whichever datatype
+
     }
     if (n - 1 < m) {
         // Define v := A[n-1:m,n-1]

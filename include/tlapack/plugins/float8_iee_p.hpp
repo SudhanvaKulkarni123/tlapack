@@ -34,6 +34,7 @@ namespace tlapack {
         };
     }  // namespace traits
 
+
   }
 
 namespace tlapack {
@@ -165,7 +166,6 @@ inline std::istream& operator>>(std::istream& is, ml_dtypes::float8_internal::bl
     x = ml_dtypes::float8_internal::block_float8_ieee<p>(f);
     return is;
 }
-
 
 
 
@@ -312,6 +312,7 @@ using namespace tlapack;
     }
 
 
+
     //bfp p3109
     template<int p>
     inline block_float8_ieee<p> ceil(block_float8_ieee<p> x) noexcept
@@ -369,10 +370,14 @@ using namespace tlapack;
 
    
     }
+
     }
 
 template<int p>
 bool is_bfp(ml_dtypes::block_float8_ieee<p>){
     return true;
 }
+
+
+
 

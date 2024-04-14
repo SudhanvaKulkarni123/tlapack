@@ -79,7 +79,7 @@ for(int n = m; n < 200; n++){
     std::vector<float> R_(n*n, 0.0);
     tlapack::LegacyMatrix<float, idx_t, L> R(n, n, R_.data(), n);
     for (size_t i = 0; i < n; i++){
-        S(i, i) = 1.0;
+        R(i, i) = 1.0;
     }
 
 
@@ -91,7 +91,8 @@ for(int n = m; n < 200; n++){
     
     for(int j = 0; j < n; ++j){
         for(int i = 0; i < n; ++i){
-            FG(i,j) = (static_cast<float>(rand()))*float(scale)/static_cast<float>(RAND_MAX);
+            FG(i,j) = -0.5*(static_cast<float>(rand()))*float(scale)/static_cast<float>(RAND_MAX);
+            FG(i,j) += (static_cast<float>(rand()))*float(scale)/static_cast<float>(RAND_MAX);
         }
     }
   
@@ -125,12 +126,12 @@ for(int n = m; n < 200; n++){
         float maxA = tlapack::lange(tlapack::Norm::Max, FG);
 
         
-        float normA = tlapack::lange(tlapack::Norm::Inf, FG);
+        float normA = tlapack::lange(tlapack::Norm::Max, FG);
 
 
     for (size_t j = 0; j < n; ++j){
         for (size_t i = 0; i < n; ++i){
-            // A(i,j) = static_cast<real_t>(sqrt(float(scale)*0.125)*FG(i,j)/normA);
+            //A(i,j) = static_cast<real_t>(sqrt(float(scale)*0.125)*FG(i,j)/normA);
             A(i,j) = static_cast<real_t>(FG(i,j));
         }
      }
@@ -173,31 +174,57 @@ for(int n = m; n < 200; n++){
     
 
     // create X to store invese of A later
-    std::vector<T> X_(n * n, T(0));
-    tlapack::LegacyMatrix<T, idx_t, L> X(n, n, X_.data(), n);
+    std::vector<float> X_(n * n, 0.0);
+    tlapack::LegacyMatrix<float, idx_t, L> X(n, n, X_.data(), n);
 
-    
+    std::vector<float> X_abs_(n * n, 0.0);
+    tlapack::LegacyMatrix<float, idx_t, L> X_abs(n, n, X_abs_.data(), n);
+
+    std::vector<float> LU_copy_(n * n, 0.0);
+    tlapack::LegacyMatrix<float, idx_t, L> LU_copy(n, n, LU_copy_.data(), n);
+
+    std::vector<float> LU_abs_(n * n, 0.0);
+    tlapack::LegacyMatrix<float, idx_t, L> LU_abs(n, n, LU_abs_.data(), n);
+
+    for(int i = 0; i < n; i++) {
+        for(int j = 0; j < n ; j++) {
+            LU_copy(i,j) = float(LU(i,j));
+            LU_abs(i,j) = abs(float(LU(i,j)));
+        }
+    }
     // step 0: store Identity or Scaling matrix on X
     for (size_t i = 0; i < n; i++){
-        X(i, i) = real_t(1);    
+        X(i, i) = 1.0;    
+        X_abs(i, i) = 1.0;
         
     }
 
    
 
     tlapack::trmm(tlapack::Side::Left, tlapack::Uplo::Upper,
-                  tlapack::Op::NoTrans, tlapack::Diag::NonUnit, T(1), LU,
+                  tlapack::Op::NoTrans, tlapack::Diag::NonUnit, 1.0, LU_copy,
                   X);
 
     tlapack::trmm(tlapack::Side::Left, tlapack::Uplo::Lower,
-                  tlapack::Op::NoTrans, tlapack::Diag::Unit, T(1), LU, X);
+                  tlapack::Op::NoTrans, tlapack::Diag::Unit, 1.0, LU_copy, X);
 
+    tlapack::trmm(tlapack::Side::Left, tlapack::Uplo::Upper,
+                  tlapack::Op::NoTrans, tlapack::Diag::NonUnit, 1.0, LU_abs,
+                  X_abs);
+
+    tlapack::trmm(tlapack::Side::Left, tlapack::Uplo::Lower,
+                  tlapack::Op::NoTrans, tlapack::Diag::Unit, 1.0, LU_abs, X_abs);
+
+   
     
      for (idx_t i = n; i-- > 0;) {
         if (piv[i] != i) {
             auto vect1 = tlapack::row(X, piv[i]);
             auto vect2 = tlapack::row(X, i);
             tlapack::swap(vect1, vect2);
+            auto vect3 = tlapack::row(X_abs, piv[i]);
+            auto vect4 = tlapack::row(X_abs, i);
+            tlapack::swap(vect3, vect4);
         }
     }
 
@@ -207,20 +234,25 @@ for(int n = m; n < 200; n++){
     
 
     
-
+    auto normX = tlapack::lange(tlapack::MAX_NORM, X);
     //create E to store A * X
     std::vector<float> E_(n * n);
     tlapack::LegacyMatrix<float, idx_t, L> E(n, n, E_.data(), n);
     std::vector<float> Ef_(n * n);
     tlapack::LegacyMatrix<float, idx_t, L> Ef(n, n, Ef_.data(), n);
+    std::vector<float> rel_elem_(n * n);
+    tlapack::LegacyMatrix<float, idx_t, L> rel_elem(n, n, rel_elem_.data(), n);
      for (size_t j = 0; j < n; ++j){
         for (size_t i = 0; i < n; ++i){
-            
+
                 E(i,j) = (float(X(i,j))) - FG(i,j);
                 Ef(i,j) = float(LU(i,j)) - LU_float(i,j);
+                rel_elem(i,j) = abs(E(i,j))/X_abs(i,j);
         }
             
      }
+
+     if(n < 5) printMatrix(X_abs);
              //printMatrix(Ef);
            
 
@@ -238,10 +270,13 @@ for(int n = m; n < 200; n++){
     //     E(i, i) -= real_t(1);
 
     // error1 is  || X - A || / ||A||
-    float error = tlapack::lange(tlapack::Norm::Inf, E)/normA ;
+
+    float error = tlapack::lange(tlapack::Norm::Max, E)/normA ;
     float other_error = tlapack::lange(tlapack::Norm::Max, Ef);
+    float err_bound_check = tlapack::lange(tlapack::MAX_NORM, rel_elem);
+
    
-    std::cout << n << "," << error << "\n";
+    std::cout << n << "," << err_bound_check << "\n";
 }
 }
 
@@ -260,7 +295,7 @@ int main(int argc, char** argv)
     n = atoi(argv[1]);
    
       // Init random seed
-    srand(100);
+  
     std::cout.precision(4);
     std::cout << std::scientific << std::showpos;
     
@@ -279,9 +314,9 @@ int main(int argc, char** argv)
 
     //  printf("run< float8e5m2, L >( %d )\n", n);
     // if(atoi(argv[5]) == 0)
-    // run<floate4m3, L>(n, ml_dtypes::float8_internal::numeric_limits_float8_ieee_p<4>::max()/floate4m3{2.0}, static_cast<float>(atoi(argv[3])));    
+    //run<floate4m3, L>(n, ml_dtypes::float8_internal::numeric_limits_float8_ieee_p<4>::max()/floate4m3{2.0}, static_cast<float>(atoi(argv[3])));    
     // else if(atoi(argv[5]) == 1)
-    run<floate5m2, L>(n, ml_dtypes::float8_internal::numeric_limits_float8_ieee_p<3>::max(), static_cast<float>(atoi(argv[3])));  
+    //run<floate5m2, L>(n, ml_dtypes::float8_internal::numeric_limits_float8_ieee_p<3>::max(), static_cast<float>(atoi(argv[3])));  
     // else if(atoi(argv[5]) == 2)
     // run<float, L>(n,1.0, static_cast<float>(atoi(argv[3])));
     // else if(atoi(argv[5]) == 3)
@@ -290,6 +325,21 @@ int main(int argc, char** argv)
     // run<float8e4m3fn, L>(n, ml_dtypes::float8_internal::numeric_limits_float8_e4m3fn::max(), static_cast<float>(atoi(argv[3])));    
     // else 
     // run<int, L>(n,1.0, static_cast<int>(atoi(argv[3])));
+    int c1 = 0;
+    int c2 = 0;
+    auto v = 0.5;
+    for(int i = 0; i < 100000; i++) {
+    auto x = floate4m3(float((v*1.125 + (1.0 - v)*1.25)));
+    if (float(x) == 1.125) {c1++; std::cout << "bruh" << std::endl;}
+    else c2++;
+    
+    }
+
+    std::cout << c1 <<"," << c2 << "," << float(c1)/float(c2) << std::endl;
+    std::cout <<float(floate4m3(float((v*1.125 + (1.0 - v)*1.25)))) << std::endl;
+
+    
+   
     
     
     
