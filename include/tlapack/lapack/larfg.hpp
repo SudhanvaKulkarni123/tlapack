@@ -85,7 +85,7 @@ void larfg(storage_t storeMode,
     // constants
     const real_t one(1);
     const real_t zero(0);
-    const real_t safemin = safe_min<real_t>() / uroundoff<real_t>();
+    const real_t safemin = safe_min<real_t>() / uroundoff<real_t>();        //maybe change the definition of safemin??
     const real_t rsafemin = one / safemin;
 
     // check arguments
@@ -106,18 +106,21 @@ void larfg(storage_t storeMode,
         if (abs(beta) < safemin) {
             while ((abs(beta) < safemin) && (knt < 20)) {
                 knt++;
-                scal(rsafemin, x);
+               
+                scal(rsafemin, x);      //culprit
                 beta *= rsafemin;
                 alpha *= rsafemin;
+               
+
             }
-            xnorm = nrm2(x);
-            temp = (is_real<T>) ? lapy2(real(alpha), xnorm)
+            xnorm = nrm2(x);            //becomes Inf
+            temp = (is_real<T>) ? lapy2(real(alpha), xnorm) //Inf
                                 : lapy3(real(alpha), imag(alpha), xnorm);
-            beta = (real(alpha) < zero) ? temp : -temp;
+            beta = (real(alpha) < zero) ? temp : -temp;         //Inf or -Inf
         }
 
         // compute tau and y
-        tau = (beta - alpha) / beta;
+        tau = (beta - alpha) / beta;            //beta set to infinity which causes tau = NaN
         rscl(alpha - beta, x);
         if (storeMode == StoreV::Rowwise) tau = conj(tau);
 

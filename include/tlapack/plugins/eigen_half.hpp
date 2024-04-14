@@ -10,7 +10,7 @@
 #ifndef TLAPACK_EIGEN_HALF_HH
 #define TLAPACK_EIGEN_HALF_HH
 
-#include <Eigen/Core>
+#include "../eigen/Eigen/Core"
 
 #include "tlapack/base/types.hpp"
 

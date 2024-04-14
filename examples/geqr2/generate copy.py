@@ -1,35 +1,51 @@
 import random
 import numpy as np
 import scipy as sc
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 
-a_values = []
-for i in range(255):
-    if i != 128 and i != 127:
-        if not ((i >> 3) & 0b01111) == 0:
-            if i >> 7 == 1:
-                val1 = (2.0 ** (((i >> 3) & 0b01111) - 8)) * (1.0 + (1.0/2.0) * ((i >> 2) & 0b000001) + (1.0/4.0) * ((i >> 1) & 0b0000001) + (1.0/8.0) * ((i >> 0) & 0b00000001))
-            else :
-                val1 = -(2.0 ** (((i >> 3) & 0b01111) - 8)) * (1.0 + (1.0/2.0) * ((i >> 2) & 0b000001) + (1.0/4.0) * ((i >> 1) & 0b0000001) + (1.0/8.0) * ((i >> 0) & 0b00000001))
+def set_vals(p):
+    a_values = []
+    count = 0
+    
+    for i in range(255):
+            exp = ((i >> (p - 1)) & (2**(9 - p) - 2**(8 - p) - 1))
+            if i != 128 and i != 127:   
+                if not exp == 0:
+                    count = count + 1
+                    if i >> 7 == 1:
+                        val1 = 1.0
+                        for j in range(1,p): 
+                            val1 = val1 + (2**(-p+j))*((i >> (j-1)) & 1)
+                    else :
+                        val1 = 1.0
+                        for j in range(1,p): 
+                            val1 = val1 + (2**(-p+j))*((i >> (j-1)) & 1)   
+                        val1 = -val1 
+                else:
+                    if i >> 7 == 1:
+                        val1 = 0.0
+                        for j in range(1,p): 
+                            val1 = val1 + (2**(-p+j))*((i >> (j-1)) & 1)
+                    else :
+                        val1 = 0.0
+                        for j in range(1,p): 
+                            val1 = val1 + (2**(-p+j))*((i >> (j-1)) & 1)
+                val1 = (2**(exp - 2**(7-p)))*val1
+                a_values = [val1] + a_values
+    a_values.sort()
+    return a_values
 
-        else:
-            if i >> 7 == 1:
-                val1 = (2.0 ** -7) * (0.0 + (1.0/2.0) * ((i >> 2) & 0b000001) + (1.0/4.0) * ((i >> 1) & 0b0000001) + (1.0/8.0) * ((i >> 0) & 0b00000001))
-            else :
-                val1 = -(2.0 ** -7) * (0.0 + (1.0/2.0) * ((i >> 2) & 0b000001) + (1.0/4.0) * ((i >> 1) & 0b0000001) + (1.0/8.0) * ((i >> 0) & 0b00000001))
-        
-        a_values = [val1] + a_values
-a_values.sort()
 
+    
 
-def write_to_file(A):
-    cond = np.linalg.cond(A)
-    f = open("mat/" + int(cond).__str__() + ".txt", "w")
-    f.write(A.shape[0].__str__())
-    for i in range(A.shape[0]):
-        f.write("\n")
-        for j in range(A.shape[1]):
-            f.write(str(A[i,j]) + ",")
+# def write_to_file(A):
+#     cond = np.linalg.cond(A)
+#     f = open("mat/" + int(cond).__str__() + ".txt", "w")
+#     f.write(A.shape[0].__str__())
+#     for i in range(A.shape[0]):
+#         f.write("\n")
+#         for j in range(A.shape[1]):
+#             f.write(str(A[i,j]) + ",")
 
 
 def find_closest_value(b, lst):
@@ -48,18 +64,25 @@ def find_closest_value(b, lst):
 
 
 def random_orthog(n):
+  
     H = np.random.randn(n, n)
     Q, R = np.linalg.qr(H)
     return Q
+
+def get_cond(lst):
+    return np.linalg.cond(A)
+
 
 def cond_estim(A):
     #estimates condition nummber of A = LU
     return
 
 
-def init_matrix(dim, cond, is_geom):
+def init_matrix(dim, cond, is_geom, lst):
     #this function generates a matrix of given condition number in float32 using SVD.
     #We then round that matrix down to fp8
+
+    a_values = lst
     if is_geom:
         sigma = np.diag([np.power(cond,float(-i)/float(dim - 1)) for i in range(dim)])
     else :
@@ -77,7 +100,8 @@ def init_matrix(dim, cond, is_geom):
 
 
 
-def perturb(X, epsilon, is_LU, m):
+def perturb(X, epsilon, is_LU, m, lst):
+    a_values = lst
     rows,cols = np.shape(X)
     Y = np.eye(rows)
     if not is_LU:
@@ -97,17 +121,19 @@ def perturb(X, epsilon, is_LU, m):
     
 
 def Energy(X, cond):
+  
     a = np.linalg.cond(X)
     if a == float('inf'):
         a = 9999999999999999            #to avoid infs tho we won't run into them anyway since we exclude singular matrices
     return abs(a - cond) 
 
-def annealing_step(X,T,gamma, lowest, iter, cond, is_LU, m):
+def annealing_step(X,T,gamma, lowest, iter, cond, is_LU, m, lst):
+   
     energy1 = Energy(X, cond)
     if energy1 < lowest:
         lowest = energy1
     energy1 = 1 - np.exp(-gamma*(energy1 - lowest))
-    Y , num = perturb(X, 0.125, is_LU, m)
+    Y , num = perturb(X, 0.125, is_LU, m, lst)
     energy2 = Energy(Y, cond)
     if energy2 < lowest:
         lowest = energy2
@@ -128,8 +154,10 @@ def annealing_step(X,T,gamma, lowest, iter, cond, is_LU, m):
 
 
 
-def cond_annealing(n, cond):
-    A_orig = init_matrix(n, cond, False)
+def cond_annealing(n, cond, p):
+
+    a_values = set_vals(p)
+    A_orig = init_matrix(n, cond, False, a_values)
     for i in range(n):
         for j in range(n):
             A[i,j] = random.choice(a_values)
@@ -138,7 +166,7 @@ def cond_annealing(n, cond):
     lowest = float('inf')
     T = 2500
     while count < 5000 :
-        A , lowest, T = annealing_step(A, T, 0.15 , lowest, count, cond, False, 0)
+        A , lowest, T = annealing_step(A, T, 0.15 , lowest, count, cond, False, 0, a_values)
         count = count + 1
         if abs(np.linalg.cond(A) - cond) < cond/10.0:
             return np.linalg.cond(A), count
@@ -153,33 +181,25 @@ def vanilla_LU_gen(A, n, cond, new_val):
      A[n-1,n-1] = last
      return [to_ret, new_val - last]
 
-def LU_gen(n,cond,m, mode):
+def LU_gen(n,cond,m, mode, p):
     #m is dimension of trailing submatrix that we will optimize on
-    A_orig = init_matrix(n, cond, mode)
-    
+    a_values = set_vals(p)
+    A_orig = init_matrix(n, cond, mode, a_values)
     P,L,U = sc.linalg.lu(A_orig)
     A = np.matmul(np.transpose(P), A_orig)
     lowest = float('inf')
     T = 250
     count = 1
     while count < 5000:
-        A , lowest, T = annealing_step(A, T, 0.3, lowest, count, cond, True, m)
+        A , lowest, T = annealing_step(A, T, 0.3, lowest, count, cond, True, m, a_values)
         count = count + 1
         if abs(np.linalg.cond(A) - cond) < 0.1*cond:
-            return np.linalg.cond(A), np.random.permutation(np.transpose(np.random.permutation(A))) 
-    
-    return np.linalg.cond(A), A     #return only the condition number since I don't want to print out the bigger matrices
+            return list(A.flatten('F')) + [np.linalg.cond(A)] 
+ 
+    return list(A.flatten('F')) + [np.linalg.cond(A)]    #return only the condition number since I don't want to print out the bigger matrices
 
 
-
-start_cond = 100
-end_cond = 500
-increment = 10
-
-for cond in range(start_cond, start_cond+1, increment):
-    _, A = LU_gen(50, cond, 40, True)  # Adjust the parameters as needed
-    write_to_file(A)
-
+print(LU_gen(10, 10, 1, True, 4)[-1])
 
 
     

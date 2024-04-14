@@ -15,13 +15,16 @@ limitations under the License.
 
 #ifndef ML_DTYPES_FLOAT8_H_
 #define ML_DTYPES_FLOAT8_H_
-#define STOCHASTIC_ROUND
+// #define STOCHASTIC_ROUND
 //#define STOCHASTIC_ARITH            //uncomment this for stochastic rounding for all 8-bit arithmetic operations
+#define LEN 20                     //determines number of random bits to be added before truncating for stochastic rounding
 
 // 8-bit Floating Point Interchange Format, as described by
 //   https://arxiv.org/abs/2209.05433
-
+#include <random> 
+#include <ctime>
 #include <algorithm>
+#include <cstdlib>
 #include <cmath>
 #include <cstdint>
 #include <limits>
@@ -49,6 +52,9 @@ limitations under the License.
 #endif
 
 #include "../../../eigen/Eigen/Core"
+
+static std::uniform_int_distribution<int> distribution(0, (1<< LEN) - 1);
+static std::mt19937 mt(time(nullptr));
 
 namespace ml_dtypes {
 namespace float8_internal {
@@ -267,6 +273,8 @@ class float8_base {
 
   uint8_t rep_;
 };
+
+
 
 class float8_e4m3fn : public float8_base<float8_e4m3fn> {
   // Exponent: 4, Mantissa: 3, bias: 7.
@@ -1181,7 +1189,7 @@ struct numeric_limits_float8_e5m2fnuz : public numeric_limits_float8_base {
 template <int p>
 struct numeric_limits_float8_ieee_p : public numeric_limits_float8_base {
  private:
-  static inline constexpr const int kExponentBias = 1 << (7-p);
+  static inline constexpr const int kExponentBias = (1 << (7-p));
   static inline constexpr const int kMantissaBits = p - 1;
 
  public:
@@ -1190,7 +1198,7 @@ struct numeric_limits_float8_ieee_p : public numeric_limits_float8_base {
   static inline constexpr const int digits10 = Digits10FromDigits(digits);
   static inline constexpr const int max_digits10 =
       MaxDigits10FromDigits(digits);
-  static inline constexpr const int min_exponent = (1 - kExponentBias) + 1;
+  static inline constexpr const int min_exponent = (1 - kExponentBias);
   static inline constexpr const int min_exponent10 =
       MinExponent10FromMinExponent(min_exponent);
   static inline constexpr const int max_exponent = kExponentBias - 1;
@@ -1551,10 +1559,12 @@ inline Bits Stochastic_Round(Bits bits, int roundoff) {
   //given pattern FFF...FLRTT...T,rounds stochastically by generating random bits
   // corresponding to  RTT...T and adding the genned number.
   //Then we truncate the mantissa
-  int samp = rand(); // Generate a random integer
-  Bits complement = (Bits{1} << (roundoff - 1)) - 1;
+  auto len = LEN;
+  //auto len = 2;
+  int samp = distribution(mt); // Generate a random integer
+  Bits complement = (Bits{1} << (len)) - 1;
   Bits to_add = static_cast<Bits>(samp & complement); 
-  Bits to_ret = bits + to_add; // Add random bits to the input bits
+  Bits to_ret = bits + (to_add << (roundoff - len)); // Add random bits to the input bits
   return to_ret;
 }
 
@@ -1670,7 +1680,7 @@ struct ConvertImpl<From, To, kSaturate, kTruncate,
       return from_sign_bit ? -To{} : To{};
     }
 
-    const int biased_from_exponent = from_bits >> kFromMantissaBits;
+    const int biased_from_exponent = from_bits >> kFromMantissaBits;  //check if number is subnormal
 
     // `To` supports more exponents near zero which means that some subnormal
     // values in `From` may become normal.

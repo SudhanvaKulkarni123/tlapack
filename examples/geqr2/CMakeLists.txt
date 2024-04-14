@@ -9,6 +9,7 @@ cmake_minimum_required(VERSION 3.5)
 project( geqr2 CXX )
 set(CMAKE_PREFIX_PATH "~/Documents/tlapack/")
 set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_FLAGS_DEBUG  "-g")
 # Load <T>LAPACK
 
 if( NOT TARGET tlapack )
@@ -19,3 +20,8 @@ find_package(OpenCV REQUIRED)
 add_executable( example_geqr2 example_geqr2.cpp )
 target_link_libraries( example_geqr2 PRIVATE tlapack ${OpenCV_LIBS})
 target_include_directories(example_geqr2 PRIVATE ${OpenCV_INCLUDE_DIRS})
+
+# add the example vanilla_IR
+add_executable( example_vanilla_IR example_vanilla_IR.cpp )
+target_link_libraries( example_vanilla_IR PRIVATE tlapack ${OpenCV_LIBS})
+target_include_directories(example_vanilla_IR PRIVATE ${OpenCV_INCLUDE_DIRS})
