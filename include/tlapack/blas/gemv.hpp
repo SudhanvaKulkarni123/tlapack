@@ -58,7 +58,7 @@ template <TLAPACK_MATRIX matrixA_t,
                                      pair<beta_t, T> > = 0>
 void gemv(Op trans,
           const alpha_t& alpha,
-          matrixA_t& A,
+          const matrixA_t& A,
           const vectorX_t& x,
           const beta_t& beta,
           vectorY_t& y)

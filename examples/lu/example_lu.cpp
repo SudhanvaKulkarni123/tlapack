@@ -328,15 +328,42 @@ int main(int argc, char** argv)
     int c1 = 0;
     int c2 = 0;
     auto v = 0.5;
-    for(int i = 0; i < 100000; i++) {
-    auto x = floate4m3(float((v*1.125 + (1.0 - v)*1.25)));
-    if (float(x) == 1.125) {c1++; std::cout << "bruh" << std::endl;}
-    else c2++;
     
+    
+    int num_zer = 0;
+    std::ofstream myfile("dots.csv");
+
+    for(int j = 0 ; j < 10000; j++) {
+        srand(j);
+    floate4m3 num_a = floate4m3{0.0};
+    float num_fa = 0.0;
+    floate4m3 first = floate4m3{0.0};
+    float first_f = 0.0;
+    floate4m3 sum = floate4m3{0.0};
+    float sum_f  =0.0;
+    float ref_sum = 0.0;
+    for(int i = 0; i < 100; i++) {
+        num_fa = float(static_cast<floate4m3>(float(rand())/float(RAND_MAX)));
+        num_a = static_cast<floate4m3>(num_fa);
+        num_zer += num_fa == 0.0 ? 1 : 0;
+        if(i == 0)  {
+        first = num_a;
+        first_f = num_fa;
+        }
+        sum += num_a*num_a;
+        sum_f += num_fa*num_fa;
     }
 
-    std::cout << c1 <<"," << c2 << "," << float(c1)/float(c2) << std::endl;
-    std::cout <<float(floate4m3(float((v*1.125 + (1.0 - v)*1.25)))) << std::endl;
+    
+
+    auto A = (sqrt(sum) - first)/sqrt(sum);
+    auto Af = (sqrt(sum_f) - first_f)/sqrt(sum_f);
+    myfile << (float(A) - Af)/Af << "," << std::endl;
+
+    std::cout << num_zer << std::endl;
+    }
+
+    
 
     
    

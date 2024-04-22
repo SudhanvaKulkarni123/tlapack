@@ -85,7 +85,7 @@ def init_matrix(dim1, dim2, cond, is_geom, lst):
 
     a_values = lst
     dim = min(dim1,dim2)
-    sigma = np.matrix([[0 for _ in range(dim2)] for _ in range(dim1)])
+    sigma = np.matrix([[0.0 for _ in range(dim2)] for _ in range(dim1)])
     if is_geom:
         for i in range(dim):
             sigma[i,i] = np.power(cond,float(-i)/float(dim - 1))
@@ -114,14 +114,14 @@ def perturb(X, epsilon, is_LU, m, lst):
         I = range(rows)
         J = range(cols)
     else :
-        I = range(rows- m,rows)
+        I = range(rows- m - (rows - cols),rows)
         J = range(cols- m, cols)
     for i in I:
         for j in J:
             X[i,j] = find_closest_value(X[i,j]*(1 + np.random.uniform(-1.5,1.5)*epsilon),a_values)
-    P,L,U = sc.linalg.lu(X[-m:,-m:])
-    Y[-m:,-m:] = np.matmul(np.transpose(P),X[-m:,-m:])
-    X[-m:,-m:] = Y[-m:,-m:]
+    P,L,U = sc.linalg.lu(X[-m - (rows - cols):,-m:])
+    Y[-m - (rows - cols):,-m:] = np.matmul(np.transpose(P),X[-m - (rows - cols):,-m:])
+    X[-m - (rows - cols):,-m:] = Y[-m - (rows - cols):,-m:]
     return X, 0
 
     
@@ -133,7 +133,7 @@ def Energy(X, cond):
         a = 9999999999999999            #to avoid infs tho we won't run into them anyway since we exclude singular matrices
     return abs(a - cond) 
 
-def annealing_step(X,T,gamma, lowest, iter, cond, is_LU, m, lst):
+def tunneling_step(X,T,gamma, lowest, iter, cond, is_LU, m, lst):
    
     energy1 = Energy(X, cond)
     if energy1 < lowest:
@@ -159,7 +159,8 @@ def annealing_step(X,T,gamma, lowest, iter, cond, is_LU, m, lst):
             return X , lowest , T
 
 
-
+def annealing_step():
+    return
 def cond_annealing(n, cond, p):
 
     a_values = set_vals(p)
@@ -172,40 +173,39 @@ def cond_annealing(n, cond, p):
     lowest = float('inf')
     T = 2500
     while count < 5000 :
-        A , lowest, T = annealing_step(A, T, 0.15 , lowest, count, cond, False, 0, a_values)
+        A , lowest, T = tunneling_step(A, T, 0.15 , lowest, count, cond, False, 0, a_values)
         count = count + 1
         if abs(np.linalg.cond(A) - cond) < cond/10.0:
             return np.linalg.cond(A), count
     
     return np.linalg.cond(A), count        #return only the condition number since I don't want to print out the bigger matrices
 
-def vanilla_LU_gen(A, n, m,cond, new_val):
-     
-     last = A[m-1,n-1]
-     A[m-1,n-1] = new_val
-     to_ret = np.linalg.cond(A)
-     A[m-1,n-1] = last
-     return [to_ret, new_val - last]
+def vanilla_LU_gen(A, n, m,cond, new_val):   
+    last = A[m-1,n-1]
+    A[m-1,n-1] = new_val
+    to_ret = np.linalg.cond(A)
+    A[m-1,n-1] = last
+    return [to_ret, new_val - last]
 
-def LU_gen(n,cond,m, mode, p):
+def LU_gen(n1,n2,cond,m, mode, p):
     #m is dimension of trailing submatrix that we will optimize on
     a_values = set_vals(p)
-    A_orig = init_matrix(n, n, cond, mode, a_values)
+    A_orig = init_matrix(n1, n2, cond, mode, a_values)
     P,L,U = sc.linalg.lu(A_orig)
     A = np.matmul(np.transpose(P), A_orig)
     lowest = float('inf')
-    T = 250
+    T = 2500
     count = 1
-    while count < 5000:
-        A , lowest, T = annealing_step(A, T, 0.3, lowest, count, cond, True, m, a_values)
+    while count < 500:
+        A , lowest, T = tunneling_step(A, T, 0.3, lowest, count, cond, True, m, a_values)
         count = count + 1
         if abs(np.linalg.cond(A) - cond) < 0.1*cond:
             return list(A.flatten('F')) + [np.linalg.cond(A)] 
  
     return list(A.flatten('F')) + [np.linalg.cond(A)]    #return only the condition number since I don't want to print out the bigger matrices
 
-A_orig = init_matrix(10, 5, 500, True, set_vals(4))
-print(vanilla_LU_gen(A_orig,5,10, 50, A_orig[9,4]*(1.125)))
+print(LU_gen(500,50, 100, 1, False, 4)[-1])
+
 
 
     

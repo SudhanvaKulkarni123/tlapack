@@ -4,8 +4,6 @@
 
 namespace tlapack {
 
-   
-
 
 template <typename matrix_At, typename real_t>
    void mat_balance(matrix_At& A, Layout L, real_t a, bool is_tri, Uplo uplo) {

@@ -297,6 +297,9 @@ float run(size_t n, T scale, float cond) {
 
 
 
+    //design space - do we want rank 1 update?
+    //              - round z1,z2,a_min, a_max to powers of 2?
+
 
 }
 

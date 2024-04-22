@@ -85,7 +85,8 @@ void larfg(storage_t storeMode,
     // constants
     const real_t one(1);
     const real_t zero(0);
-    const real_t safemin = safe_min<real_t>() / uroundoff<real_t>();        //maybe change the definition of safemin??
+    //const real_t safemin = safe_min<real_t>() / uroundoff<real_t>();        //maybe change the definition of safemin??
+    const real_t safemin = static_cast<real_t>(0.0);
     const real_t rsafemin = one / safemin;
 
     // check arguments
@@ -93,7 +94,12 @@ void larfg(storage_t storeMode,
                   storeMode == StoreV::Rowwise);
 
     tau = zero;
-    real_t xnorm = nrm2(x);
+    //remove below portion if we want norm in fp8
+    std::vector<float> xf(size(x));
+    for(int i = 0; i < size(x); i++) {
+        xf[i] = float(x[i]);
+    }
+    real_t xnorm = static_cast<real_t>(nrm2(xf));
 
     if (xnorm > zero || (imag(alpha) != zero)) {
         // First estimate of beta
@@ -113,7 +119,10 @@ void larfg(storage_t storeMode,
                
 
             }
-            xnorm = nrm2(x);            //becomes Inf
+            for(int i = 0; i < size(x); i++) {
+                xf[i] = float(x[i]);
+            }
+            xnorm = static_cast<real_t>(nrm2(xf));            //becomes Inf
             temp = (is_real<T>) ? lapy2(real(alpha), xnorm) //Inf
                                 : lapy3(real(alpha), imag(alpha), xnorm);
             beta = (real(alpha) < zero) ? temp : -temp;         //Inf or -Inf

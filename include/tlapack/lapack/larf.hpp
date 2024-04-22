@@ -72,8 +72,11 @@ void larf_work(side_t side,
 
     // Quick return if possible
     if (m == 0 || n == 0) {
-        for (idx_t i = 0; i < k; ++i)
-            C0[i] -= tau * C0[i];
+        for (idx_t i = 0; i < k; ++i) {
+            float buf = float(C0[i]);
+            buf -= float(tau) * buf;
+            C0[i] = real_t(buf);
+        }
         return;
     }
 
@@ -81,6 +84,7 @@ void larf_work(side_t side,
     auto [w, work1] = reshape(work, k);
 
     if (side == Side::Left) {
+
         if (storeMode == StoreV::Columnwise) {
             // w := C0^H + C1^H*x
             for (idx_t i = 0; i < k; ++i)
@@ -91,8 +95,11 @@ void larf_work(side_t side,
             ger(-tau, x, w, C1);
 
             // C0 := C0 - tau*w^H
-            for (idx_t i = 0; i < k; ++i)
-                C0[i] -= tau * conj(w[i]);
+            for (idx_t i = 0; i < k; ++i){
+                float buf = float(C0[i]);
+                buf -= float(tau) * float(conj(w[i]));
+                C0[i] = real_t(buf) ;
+            }
         }
         else {
             // w := C0^t + C1^t*x

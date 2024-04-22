@@ -388,7 +388,7 @@ double run(size_t n, T scale, float cond, int p) {
             maxim = maxim > tmp ? maxim : tmp;
         }
     }
-    return maxim;
+    //return maxim;
 
     tlapack::trsv(Uplo::Lower, NO_TRANS, Diag::Unit, LU_copy, b1);
     tlapack::trsv(Uplo::Upper, NO_TRANS, Diag::NonUnit, LU_copy, b1);

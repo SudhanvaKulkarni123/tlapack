@@ -91,8 +91,8 @@ void gemm(Op transA,
         (idx_t)((transB == Op::NoTrans) ? nrows(B) : ncols(B)) != k);
 
 
-
-    mat_balance(A, Layout::ColMajor, TA(1.0), false, Uplo::General);
+                              
+    mat_balance(A, Layout::ColMajor, TA(1.0), false, Uplo::General);      
     mat_balance(B, Layout::RowMajor, TB(1.0), false, Uplo::General);
     #ifdef MIXED_PREC
     std::vector<float> MixedMat_(m * n);

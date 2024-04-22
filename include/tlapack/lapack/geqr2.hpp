@@ -92,60 +92,10 @@ int geqr2_work(matrix_t& A, vector_t& tau, work_t& work, std::vector<float>& sca
     if (n <= 0 || m <= 0) return 0;
     
     for (idx_t i = 0; i < k; ++i) {
-        bool for_debug = isNanorInf(A);
-       
-        #ifdef TESTSCALING
-        
-        
-
-        if(i%1 == 0) {
-        using real_t = type_t<matrix_t>;
-        std::vector<float> maxes(n, 0.0);
-        std::vector<float> sums(n, 0.0);
-
-        for(int i =0; i < m; i++) {
-        for(int j = 0; j <n; j++){
-            sums[j] += float(abs(A(i,j)));
-        }
-    }
-        
-
-        for (size_t t = 0; t < m; ++t){
-            for (size_t j = 0; j < n; ++j){
-                maxes[j] = abs(float(A(t,j))) > maxes[j] ? abs(float(A(t,j))) : maxes[j];
-            }
-        }
-       
-            
-        for(int t = 0; t < n; t++){
-        if(sums[t] != 0) scal[t] *= sqrt(0.125)/sums[t];
-        //if(maxes[t] != 0) scal[t] *= float((maxes[t]));
-        //Scal_[k] = 1;
-        }
-    
-   
-        for (size_t j = 0; j < n; ++j){
-            for (size_t t = 0; t < m; ++t){
-                //if(maxes[j] != 0) A(t,j) = A(t,j)/real_t((maxes[j]));
-                if(sums[j] != 0) A(t,j) = A(t,j)/real_t((sums[j]));
-            }
-        }
-
-        }
-
-        #endif
 
         // Define v := A[i:m,i]
 
         auto v = slice(A, range{i, m}, i);
-        auto max_v = 0.0;
-        auto min_v = 99999999.0;
-        auto normv = 0.0;
-        for(int j = i; j < m; j++) {
-            max_v = max_v > float(abs(v[j - i])) ? max_v : float(abs(v[j - i])) ;
-            min_v = min_v < float(abs(v[j - i])) ? min_v : float(abs(v[j - i])) ;
-            normv = normv + float(v[j - i])*float(v[j - i]);
-        }
         
 
         // Generate the (i+1)-th elementary Householder reflection on v
@@ -159,6 +109,7 @@ int geqr2_work(matrix_t& A, vector_t& tau, work_t& work, std::vector<float>& sca
                   work);
         //need to insert some kind of normalization function just like the bfp case
         //run normalization algorithm and cast back to 8 or whichever datatype
+         
 
     }
     if (n - 1 < m) {

@@ -197,6 +197,7 @@ void lassq(const vector_t& x,
     return lassq(x, scale, sumsq,
                  // Lambda function that returns the absolute value using abs :
                  [](const T& x) { return abs(x); });
+    
 }
 
 }  // namespace tlapack

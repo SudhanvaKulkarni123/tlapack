@@ -56,11 +56,27 @@ void ger(const alpha_t& alpha,
     tlapack_check_false(size(x) != m);
     tlapack_check_false(size(y) != n);
 
+    std::vector<float> buf(m*n);
+    for(int i = 0; i < m; i++) {
+        for(int j = 0; j < n; j++) {
+            buf[n*i + j] = float(A(i,j));
+        }
+    }
+
+
     for (idx_t j = 0; j < n; ++j) {
         const float tmp = float(alpha) * float(conj(y[j]));
         for (idx_t i = 0; i < m; ++i)
-            A(i, j) += scalar_t(float(x[i]) * tmp);
+            buf[n*i + j] += (float(x[i]) * tmp);
     }
+
+    for(int i = 0; i < m; i++) {
+        for(int j = 0; j < n; j++) {
+            A(i,j) =  scalar_t(buf[n*i + j]);
+        }
+    }
+
+   
 }
 
 #ifdef TLAPACK_USE_LAPACKPP
