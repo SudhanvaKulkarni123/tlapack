@@ -1,9 +1,16 @@
+/// @author Sudhanva Kulkarni UC Berkeley
+/// @brief Example of GMRES with IR for solving least squares
+
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
 #define TLAPACK_PREFERRED_MATRIX_LEGACY
 #include <tlapack/plugins/legacyArray.hpp>
 #include <tlapack/plugins/stdvector.hpp>
 #include <tlapack/blas/dotu.hpp>
+#include <tlapack/blas/dot.hpp>
+#include <execinfo.h>
+#include <iostream>
+#include <cstdlib>
 
 #define MODE1
 #define MODE2
@@ -48,21 +55,6 @@ void printMatrix(const matrix_t& A)
     
 }
 
-template <typename matrixA_t, typename matrixB_t>
-bool MatricesEqual(const matrixA_t& A, const matrixB_t& B)
-{
-    using idx_t = tlapack::size_type<matrixA_t>;
-    const idx_t m = tlapack::nrows(A);
-    const idx_t n = tlapack::ncols(A);
-    bool to_ret = true;
-
-    for (idx_t i = 0; i < m; ++i) {
-        for (idx_t j = 0; j < n; ++j)
-            to_ret = to_ret & (float(A(i,j)) == float(B(i,j)));
-    }
-    return to_ret;
-}
-
 template <typename vec_t>
 void printVector(const vec_t v, int n)
 {
@@ -71,7 +63,113 @@ void printVector(const vec_t v, int n)
     }
 }
 
+//-------------------------------------------------------------------
 
+//this function will convert H into an upper triangular R and b into Q^Tb. Then we can solve Rx = Q^Tb outside this function
+template <typename matrix_t, typename vector_t>
+void Hessenberg_qr(matrix_t H, vector_t b, int size)
+{
+    // data traits
+    using idx_t = size_type<matrix_t>;
+    using scalar_t = scalar_type<type_t<matrix_t>, type_t<vector_t> >;
+    using range = pair<idx_t, idx_t>;
+
+    auto m = nrows(H);
+    auto n = ncols(H);
+    float c = 0.0;
+    float s = 0.0;
+    float temp = 0.0;
+
+    auto da_num = n < size ? n : size-1;
+    for(int i = 0; i < da_num; i++) {
+        c = H(i,i);
+        s = -H(i+1,i);
+        H(i,i) = sqrt(H(i,i)*H(i,i) + H(i+1,i)*H(i+1,i));
+        c = c/H(i,i);
+        s = s/H(i,i);
+        H(i+1,i) = 0.0;
+        for(int j = i+1; j < n; j++) {
+            temp = c*H(i,j) - s*H(i+1,j);
+            H(i+1,j) = s*H(i,j) + c*H(i+1,j);
+            H(i,j) = temp;
+        }
+        temp = c*b[i] - s*b[i+1];
+        b[i+1] = s*b[i] + c*b[i+1];
+        b[i] = temp;
+        
+    }
+    
+
+}
+
+
+
+
+
+
+
+//------------------------------------------------------------------------------
+//this function performs step k of arnoldi iter where k > 0
+template <TLAPACK_MATRIX matrixA_t, TLAPACK_MATRIX matrixH_t, TLAPACK_MATRIX matrixQ_t>
+void arnoldi_iter(matrixA_t& A, matrixH_t& H, matrixQ_t& Q, int k)
+{
+    // data traits
+    using idx_t = size_type<matrixA_t>;
+    using scalar_t = scalar_type<type_t<matrixA_t>, type_t<matrixA_t> >;
+    using range = pair<idx_t, idx_t>;
+    // constants
+    const idx_t n = nrows(Q);
+    const idx_t m = ncols(H);
+
+    // temporary storage
+    std::vector<scalar_t> w(n);
+
+    // one step of Arnoldi iteration
+    // w = A * V[j]
+        auto vec = slice(Q, range{0, m} ,k);
+        gemv(Op::NoTrans, static_cast<scalar_t>(1.0), A, vec, static_cast<scalar_t>(0), w);
+
+        // H[j,0:j+1] = V[0:n] * w
+        for (idx_t i = 0; i < k+1; ++i)
+            H(i, k) = dot(slice(Q, range{0, m} ,i), w);
+
+        // w = w - V[0:n] * H[0:j+1,j]
+        for (idx_t i = 0; i < k+1; ++i)
+            axpy(-H(i, k), slice(Q, range{0, m} ,i), w);
+            
+        if(k == n-1) return;
+        // H[k+1,k] = ||w||
+        H(k+1, k) = nrm2(w);
+
+        // Q[k+1] = w / H[k+1,k]
+       
+        rscl(H(k+1, k), w);
+        for(int i = 0; i < m; i++) {
+            Q(i,k+1) = w[i];
+        }
+        
+    
+}
+
+
+void print_backtrace() {
+    const int max_frames = 64;
+    void* frame_ptrs[max_frames];
+    int num_frames = backtrace(frame_ptrs, max_frames);
+    char** frame_symbols = backtrace_symbols(frame_ptrs, num_frames);
+    if (frame_symbols != nullptr) {
+        for (int i = 0; i < num_frames; ++i) {
+            std::cout << frame_symbols[i] << std::endl;
+        }
+        free(frame_symbols);
+    }
+}
+
+
+
+
+
+//----------------------------------------------------------------------
 template<typename T, typename matrix_t>
 int constructMatrix(int m, int n, float cond, int space, bool geom, matrix_t& A, int p, double& da_ref, matrix_t& Ai, matrix_t& ATA) {
     //this is an ambitious function that uses a Python embedding to call the functions found in generate\ copy.py to fill in the entries of A
@@ -158,6 +256,7 @@ int constructMatrix(int m, int n, float cond, int space, bool geom, matrix_t& A,
                 Py_DECREF(pModule);
                 PyErr_Print();
                 fprintf(stderr,"Call failed\n");
+                Py_FinalizeEx();
                 return 1;
             }
         }
@@ -172,11 +271,10 @@ int constructMatrix(int m, int n, float cond, int space, bool geom, matrix_t& A,
     else {
         PyErr_Print();
         fprintf(stderr, "Failed to load program\n");
+        Py_FinalizeEx();
         return 1;
     }
-    if (Py_FinalizeEx() < 0) {
-        return 120;
-    }
+    Py_FinalizeEx();
     return 0;
     }
 
@@ -235,6 +333,9 @@ double run(size_t m, size_t n, real_t scale, float cond, int name, bool arithmet
     auto Q1f = new_matrix(Q1f_, m, n);
     std::vector<double> Q2f_;
     auto Q2f = new_matrix(Q2f_, m, m-n);
+    
+
+    
 
     
 
@@ -256,14 +357,14 @@ double run(size_t m, size_t n, real_t scale, float cond, int name, bool arithmet
     std::vector<float> b_(m);
     tlapack::LegacyVector<float, idx_t> b(m, b_.data());
 
+    std::vector<float> be_1_(n);
+    tlapack::LegacyVector<float, idx_t> be_1(m+n, be_1_.data());
+
     std::vector<float> abs_b_(m);
     tlapack::LegacyVector<float, idx_t> abs_b(m, abs_b_.data());
     //residual
     std::vector<float> r_(m);
     tlapack::LegacyVector<float, idx_t> r(m, r_.data());
-    //residual copy
-    std::vector<float> r_copy_(m);
-    tlapack::LegacyVector<float, idx_t> r_copy(m, r_copy_.data());
     //vector with absolute values of r
     std::vector<float> abs_r_(m);
     tlapack::LegacyVector<float, idx_t> abs_r(m, abs_r_.data());
@@ -303,16 +404,18 @@ double run(size_t m, size_t n, real_t scale, float cond, int name, bool arithmet
     std::vector<double> err_vec_(n);
     tlapack::LegacyVector<double, idx_t> err_vec(n, err_vec_.data());
 
-    std::vector<double> r_and_x_(m+n);
-    tlapack::LegacyVector<double, idx_t> r_and_x(m+n, r_and_x_.data());
+    std::vector<float> r_and_x_(m+n);
+    tlapack::LegacyVector<float, idx_t> r_and_x(m+n, r_and_x_.data());
 
+    std::vector<float> conditioned_r_and_x_(m+n);
+    tlapack::LegacyVector<float, idx_t> conditioned_r_and_x(m+n, conditioned_r_and_x_.data());
 
+    
 
     for( int i = 0; i < m; i++) {
         b[i] = (static_cast<float>(rand()))/static_cast<float>(RAND_MAX);
         s[i] = b[i];
         r[i] = b[i];
-        r_copy[i] = b[i];   
         abs_b[i] = abs(b[i]); 
         }
    
@@ -332,12 +435,12 @@ double run(size_t m, size_t n, real_t scale, float cond, int name, bool arithmet
 
     //okay now we may begin, first take QR of FG
     tlapack::lacpy(tlapack::GENERAL, A, Q);
-
+    
    
     tlapack::geqr2(Q, tau, scal);
 
- 
-
+    //time for QR
+   
     tlapack::lacpy(tlapack::GENERAL, FGd, Qf);
     tlapack::geqr2(Qf, tau_f, scal);
 
@@ -368,9 +471,7 @@ double run(size_t m, size_t n, real_t scale, float cond, int name, bool arithmet
     }
 
     //time taken for ungr2
-
     tlapack::ung2r(Q, tau);
-
     tlapack::ung2r(Qf, tau_f);
     
 
@@ -484,7 +585,6 @@ double run(size_t m, size_t n, real_t scale, float cond, int name, bool arithmet
 
 
     //now compute time for initial sol proceure
- 
     for(int i = 0; i < m; i++) s[i] = b[i];
     
     tlapack::gemv(tlapack::TRANSPOSE, 1.0, Q1, s, 0.0, c);          //c = Q1^Ts
@@ -517,16 +617,18 @@ double run(size_t m, size_t n, real_t scale, float cond, int name, bool arithmet
     //initial soln is u,v
     for(int i = 0; i < m; i++) {
         r[i] = u[i];
-        r_copy[i] = u[i];
+        r_and_x[i] = u[i];
     }
     std::cout << std::endl;
 
     
     for(int i = 0; i < n; i++) {
         x[i] = v[i];
+        r_and_x[m + i] = v[i];
     }
+    
 
-    std::cout << std::endl;
+
     
     r_norm = 0.0;
     for(int i = 0; i < m; i++) {
@@ -537,7 +639,24 @@ double run(size_t m, size_t n, real_t scale, float cond, int name, bool arithmet
     for(int i = 0; i < n; i++) {
         x_norm += v[i]*v[i];
     }
-
+    //having computed the initial solution, lets now compute preconditioned A
+    std::vector<float> conditioned_A_((m+n)*(m+n));
+    auto conditioned_A = new_matrix(conditioned_A_, m+n, m+n);
+    tlapack::lacpy(tlapack::GENERAL, A_aug, conditioned_A); 
+    //let alpha = 1.0 for now
+    auto alpha = 1.0;
+    
+    auto buffer_mat = tlapack::slice(conditioned_A, range{m, m+n}, range{0, m});
+    tlapack::trsm(tlapack::Side::Left, tlapack::Uplo::Lower, tlapack::NO_TRANS, tlapack::Diag::NonUnit, 1.0, other_guy, buffer_mat);
+    tlapack::trsm(tlapack::Side::Left, tlapack::Uplo::Upper, tlapack::NO_TRANS, tlapack::Diag::NonUnit, 1.0, guy, buffer_mat);
+   
+    for(int i =0; i < m + n; i++) {
+        for(int j = 0; j < m + n; j++) {
+            if(i < m & j >= m) conditioned_A(i,j) = conditioned_A(i,j)/alpha;
+            if(i >= m & j < m) conditioned_A(i,j) = conditioned_A(i,j)*alpha;
+        }
+    }
+   
    auto s_norm = 0.0;
    auto maxS = 0;
     
@@ -557,54 +676,93 @@ double run(size_t m, size_t n, real_t scale, float cond, int name, bool arithmet
     auto r_and_x_norm = 0.0;
     double back_error = 0.0;
 
-
     myfile << cnt << "," << condition_num << std::endl;
     double max_x = 0.0;
+    int num_iter = 0;
+    float normb = 0.0;
+    float inner_res_norm = 10.0;
+    float tol = 1e-6;
+
+    
+
+    std::vector<float> H_prime_;
+    auto H_prime = new_matrix(H_prime_, m+n, m+n);
+    std::vector<float> H_copy_;
+    auto H_copy = new_matrix(H_copy_, m+n, m+n);
+    std::vector<float> Q_prime_;
+    auto Q_prime = new_matrix(Q_prime_, m+n, m+n);
+
+    
+   
     do {
         //time for one iter
-
-        for(int i = 0; i < m; i++) {
-            s[i] = r[i];
+        //initialize conditioned r to be [b,0] so that we can call GEMV and preondition
+        for(int i = 0; i < m+n; i++) {
+        conditioned_r_and_x[i] = (i < m ? b[i] : 0.0);
         }
-        tlapack::axpy(-1.0, b, s);     
+        tlapack::gemv(tlapack::NO_TRANS, -1.0, A_aug, r_and_x, 1.0, conditioned_r_and_x);
         
-        // s = r - b
-        tlapack::gemv(tlapack::NO_TRANS, -1.0, FG, x, -1.0, s);   //compute residual --> b - Ax - r
-       
-        // b - Ax - r
-        tlapack::gemv(tlapack::TRANSPOSE, -1.0, FG, r, 0.0, t); //compute -A^Tr --> t = -A^Tr
+        auto buffer = tlapack::slice(conditioned_r_and_x, range{0, m});
 
-  //c = Q1^Ts
-        tlapack::gemv(tlapack::TRANSPOSE, 1.0, Q1, s, 0.0, c);          //c = Q1^Ts
-        tlapack::gemv(tlapack::TRANSPOSE, 1.0, Q2, s, 0.0, d); 
-   
-        tlapack::trsv(Uplo::Lower, tlapack::NO_TRANS, Diag::NonUnit, other_guy, t);       //e is now stored in t --> e = inv(R^T)*t
-       
-        for(int i = 0; i < n; i++) {
-            v[i] = c[i]-t[i];      //now v = c-e
-            e[i] = t[i];
+        tlapack::rscl((alpha), buffer); 
+        auto the_x = tlapack::slice(conditioned_r_and_x, range{m, m+n});
+        tlapack::trsv(tlapack::Uplo::Lower, tlapack::NO_TRANS, tlapack::Diag::NonUnit, other_guy, the_x);
+        tlapack::trsv(tlapack::Uplo::Upper, tlapack::NO_TRANS, tlapack::Diag::NonUnit, guy, the_x);
+        tlapack::scal((alpha), the_x);
+     
+
+
+        //now that we have preconditioned, start GMRES
+        normb = tlapack::nrm2(conditioned_r_and_x);
+        //Now initialize first col of Q to be normalized b
+        for(int i = 0; i < m+n; i++) {
+            Q_prime(i,0) = conditioned_r_and_x[i]/normb; 
+        }
+        for(int i = 0; i < m+n; i++) be_1[i] = (i == 0 ? normb : 0.0);
+ 
+        while(num_iter < 10) {
+            //perform num_iter-th step of arnoldi
+            
+            arnoldi_iter(conditioned_A, H_prime, Q_prime, num_iter);
+            num_iter = num_iter + 1; 
+            for(int i = 0; i < m+n; i++) {
+                for(int j = 0; j < m+n; j++) {
+                    H_copy(i,j) = H_prime(i,j);
+                }
+            }
+
+            
+           
+            // if(num_iter > 1) return 0.0;
+            //solve ||Hx - b||
+            
+            for(int i = 0; i < m+n; i++) be_1[i] = (i == 0 ? normb : 0.0);
+            if(num_iter != m+n) Hessenberg_qr(tlapack::slice(H_copy,range{0, num_iter+1}, range{0,num_iter}), tlapack::slice(be_1,range{0,  num_iter+1}), m+n);
+            else  Hessenberg_qr(H_copy, be_1, m+n);
+
+            
+            auto da_tmp = tlapack::slice(be_1,range{0, num_iter});
+            if(num_iter != m+n) tlapack::trsv(Uplo::Upper, tlapack::NO_TRANS,tlapack::Diag::NonUnit ,tlapack::slice(H_copy,range{0, num_iter}, range{0,num_iter}), da_tmp);
+            else tlapack::trsv(Uplo::Upper, tlapack::NO_TRANS, tlapack::Diag::NonUnit, H_copy, da_tmp);
+            //our solution vector is now obtained by multiplying by Q_n
+            
+            
+            if(num_iter != m+n) tlapack::gemv(tlapack::NO_TRANS, 1.0, tlapack::slice(Q_prime,range{0, m+n}, range{0,num_iter}), tlapack::slice(be_1, range{0, num_iter}), 0.0, conditioned_r_and_x);
+            else tlapack::gemv(tlapack::NO_TRANS, 1.0, Q_prime, be_1, 0.0, conditioned_r_and_x); 
+
             
         }
+        //update r
         
-        tlapack::trsv(Uplo::Upper, tlapack::NO_TRANS,Diag::NonUnit, guy, v);    //v = inv(R)*(c - e)
-        for (int i = 0; i < m; i++) {
-            if(i < n) u_buf[i] = e[i];
-            else u_buf[i] = d[i - n];
-        }
-
-        tlapack::gemv(tlapack::NO_TRANS, 1.0, Q_copy, u_buf, 0.0, u);
-        for(int i = 0; i < m; i++) {
-            u[i] = u[i];
-            if(i < n) v[i] = v[i];
-        }
-        //update soln vector
-        tlapack::axpy(1.0, u, r);
-        tlapack::axpy(1.0, v, x);
-        //end time
+        tlapack::axpy(1.0, conditioned_r_and_x, r_and_x);
+      
+        num_iter = 0;
 
 
-   
-        for(int i = 0; i < n; i++) err_vec[i] = (x[i]);
+        
+
+  
+        for(int i = 0; i < n; i++) err_vec[i] = (r_and_x[m+i]);
         tlapack::axpy(-1.0, true_x, err_vec);
         back_error = 0.0;
         for(int i = 0; i < n; i++) back_error = (back_error > abs(err_vec[i]) ? back_error : abs(err_vec[i]));
@@ -613,36 +771,20 @@ double run(size_t m, size_t n, real_t scale, float cond, int name, bool arithmet
         //now at the end of the iter, compute abs(pinv(A))*(abs(b)  + abs(A)*abs(x)) + abs(inv(A^TA)*abs(A^T)*abs(r))
 
         myfile << cnt << "," << back_error << std::endl;
-        if(cnt > 5) break;
+        if(cnt > 40) break;
         
 
 
     } while (true);
-   
 
-
-   
-   std::cout << std::endl;
-   for(int i = 0; i < m; i++) {
-    s_norm += abs(s[i]*s[i]);
-   }
-   s_norm = sqrt(s_norm);
-
-   
+ 
+    
     
 
-
-
-
-
-    
     
     //now post-process
-    std::cout << "final residual error: " << s_norm  << std::endl;
+    std::cout << "final residual error: " << back_error  << std::endl;
     return condition_num;
-
-
-
 }
 
 int main(int argc, char** argv) {
@@ -683,7 +825,6 @@ int main(int argc, char** argv) {
     er3 += run<float8e4m3fn>(m, n, ml_dtypes::float8_internal::numeric_limits_float8_e4m3fn::max(), static_cast<float>(atoi(argv[3])), 0, atoi(argv[4]) == 1, 4);    
     else 
     er3 += run<int>(m,n,1.0, static_cast<int>(atoi(argv[3])), 0, atoi(argv[4]) == 1, 4);
-    
     
     return 0;
 

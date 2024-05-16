@@ -547,7 +547,7 @@ float run(size_t n, T scale, float cond, int p, int variant = 0)
             // if(num_iter > 1) return 0.0;
             //solve ||Hx - b||
             
-            for(int i = 0; i < n; i++) be_1[i] = (i == 0 ? normb : 0.0);
+            for(int i = 0; i < m + n; i++) be_1[i] = (i == 0 ? normb : 0.0);
             if(num_iter != n) Hessenberg_qr(tlapack::slice(H_copy,range{0, num_iter+1}, range{0,num_iter}), tlapack::slice(be_1,range{0,  num_iter+1}), n);
             else  Hessenberg_qr(H_copy, be_1, n);
             

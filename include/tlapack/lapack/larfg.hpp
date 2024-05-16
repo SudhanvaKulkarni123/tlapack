@@ -85,8 +85,8 @@ void larfg(storage_t storeMode,
     // constants
     const real_t one(1);
     const real_t zero(0);
-    //const real_t safemin = safe_min<real_t>() / uroundoff<real_t>();        //maybe change the definition of safemin??
-    const real_t safemin = static_cast<real_t>(0.0);
+    const real_t safemin = safe_min<real_t>() / uroundoff<real_t>();        //maybe change the definition of safemin??
+    //const real_t safemin = static_cast<real_t>(0.0);
     const real_t rsafemin = one / safemin;
 
     // check arguments

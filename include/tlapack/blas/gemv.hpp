@@ -68,8 +68,6 @@ void gemv(Op trans,
     using TX = type_t<vectorX_t>;
     using idx_t = size_type<matrixA_t>;
 
-    mat_balance(A, Layout::RowMajor, TA(1.0), false, Uplo::General);
-    vec_balance(x, TX(1.0));
 
     // constants
     const idx_t m =
@@ -135,7 +133,8 @@ void gemv(Op trans,
             for (idx_t j = 0; j < n; ++j) {
                 tmp += A(j, i) * x[j];
             }
-            y[i] += alpha * tmp;
+            
+            y[i] = alpha * tmp + beta*y[i];
         }
     }
     else {
@@ -148,7 +147,7 @@ void gemv(Op trans,
             y[i] += alpha * tmp;
         }
     }
-        vec_balance(x, TX(1.0));
+
 
 }
 

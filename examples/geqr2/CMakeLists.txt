@@ -25,3 +25,16 @@ target_include_directories(example_geqr2 PRIVATE ${OpenCV_INCLUDE_DIRS})
 add_executable( example_vanilla_IR example_vanilla_IR.cpp )
 target_link_libraries( example_vanilla_IR PRIVATE tlapack ${OpenCV_LIBS})
 target_include_directories(example_vanilla_IR PRIVATE ${OpenCV_INCLUDE_DIRS})
+
+# add the example GMRES_IR
+add_executable( example_GMRES_IR example_GMRES_IR.cpp )
+target_link_libraries( example_GMRES_IR PRIVATE tlapack ${OpenCV_LIBS})
+target_include_directories(example_GMRES_IR PRIVATE ${OpenCV_INCLUDE_DIRS})
+
+find_package(PythonLibs REQUIRED)
+include_directories(${PYTHON_INCLUDE_DIRS})
+target_link_libraries(example_vanilla_IR PRIVATE ${PYTHON_LIBRARIES})
+target_link_libraries(example_GMRES_IR PRIVATE ${PYTHON_LIBRARIES})
+target_link_libraries(example_geqr2 PRIVATE ${PYTHON_LIBRARIES})
+
+

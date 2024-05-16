@@ -14,9 +14,14 @@
 
 //#define TESTSCALING
 
+#include <iostream>
+#include <vector>
+#include <fstream>
+
 #include "tlapack/base/utils.hpp"
 #include "tlapack/lapack/larf.hpp"
 #include "tlapack/lapack/larfg.hpp"
+#include "tlapack/lapack/lange.hpp"
 
 template <typename matrix_t>
 bool isNanorInf(const matrix_t& A)
@@ -63,6 +68,8 @@ constexpr WorkInfo geqr2_worksize(const matrix_t& A, const vector_t& tau)
     return WorkInfo(0);
 }
 
+
+
 /** @copybrief geqr2()
  * Workspace is provided as an argument.
  * @copydetails geqr2()
@@ -71,6 +78,8 @@ constexpr WorkInfo geqr2_worksize(const matrix_t& A, const vector_t& tau)
  *
  * @ingroup computational
  */
+
+std::ofstream errors_log("geqr2_roundoff_debugging.csv");
 template <TLAPACK_SMATRIX matrix_t,
           TLAPACK_VECTOR vector_t,
           TLAPACK_WORKSPACE work_t>
@@ -79,17 +88,25 @@ int geqr2_work(matrix_t& A, vector_t& tau, work_t& work, std::vector<float>& sca
     using namespace std;
     using idx_t = size_type<matrix_t>;
     using range = pair<idx_t, idx_t>;
+    
 
     // constants
+    
     const idx_t m = nrows(A);
     const idx_t n = ncols(A);
     const idx_t k = std::min<idx_t>(m, n - 1);
+    
+
 
     // check arguments
     tlapack_check_false((idx_t)size(tau) < min(m, n));
 
+
+
     // quick return
     if (n <= 0 || m <= 0) return 0;
+
+    
     
     for (idx_t i = 0; i < k; ++i) {
 
@@ -109,8 +126,8 @@ int geqr2_work(matrix_t& A, vector_t& tau, work_t& work, std::vector<float>& sca
                   work);
         //need to insert some kind of normalization function just like the bfp case
         //run normalization algorithm and cast back to 8 or whichever datatype
-         
 
+       
     }
     if (n - 1 < m) {
         // Define v := A[n-1:m,n-1]

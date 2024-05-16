@@ -602,11 +602,11 @@ class block_float8_ieee {
   EIGEN_DEVICE_FUNC block_float8_ieee<p>(const block_float8_ieee<p>& bfp)
       : block_float8_ieee<p>(static_cast<int>(bfp.scaling_unit), float8_ieee_p<p>(bfp.float_part)) {}
   EIGEN_DEVICE_FUNC block_float8_ieee<p>(const float& f)
-      : block_float8_ieee<p>(f == 0.0 ? 0 : static_cast<int>(log2(f)), float8_ieee_p<p>(f == 0.0 ? 0.0 : f/static_cast<float>(pow(2.0,static_cast<float>(int(log2(f))))))) {}
+      : block_float8_ieee<p>(0, float8_ieee_p<p>(f)) {}
   EIGEN_DEVICE_FUNC block_float8_ieee<p>(const double& f)
-      : block_float8_ieee<p>(f == 0.0 ? 0 : static_cast<int>(log2(f)), float8_ieee_p<p>(f == 0.0 ? 0.0 : f/static_cast<double>(pow(2.0,static_cast<double>(int(log2(f))))))) {}
+      : block_float8_ieee<p>(0, float8_ieee_p<p>(f)) {}
    EIGEN_DEVICE_FUNC block_float8_ieee<p>(const int& i)
-      : block_float8_ieee<p>(static_cast<int>(i == 0 ? 0 :log2(static_cast<float>(i))), float8_ieee_p<p>(i == 0 ? 0.0 : static_cast<float>(i)/static_cast<float>(pow(2.0,static_cast<float>(int(log2(static_cast<float>(i)))))))) {}
+      : block_float8_ieee<p>(static_cast<int>(0), float8_ieee_p<p>(static_cast<float>(i))) {}
   
   
   constexpr operator float() const {
@@ -1566,6 +1566,20 @@ inline Bits Stochastic_Round(Bits bits, int roundoff) {
   Bits to_add = static_cast<Bits>(samp & complement); 
   Bits to_ret = bits + (to_add << (roundoff - len)); // Add random bits to the input bits
   return to_ret;
+}
+
+template <typename Bits>
+inline Bits Probabilistic_Round(Bits bits, int roundoff) {
+  //rounds to the next number with probability 0.5 and to the previous number with probability 0.5
+  int samp = distribution(mt); // Generate a random integer
+  if (samp%2 == 1) {
+    return bits + (Bits{1} << (roundoff));
+  } else {
+    return bits;
+  
+  }
+  
+
 }
 
 

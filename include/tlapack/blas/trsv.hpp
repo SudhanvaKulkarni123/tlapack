@@ -8,11 +8,13 @@
 // <T>LAPACK is free software: you can redistribute it and/or modify it under
 // the terms of the BSD 3-Clause license. See the accompanying LICENSE file.
 
+
 #ifndef TLAPACK_BLAS_TRSV_HH
 #define TLAPACK_BLAS_TRSV_HH
 
 #include "tlapack/base/utils.hpp"
 #include "tlapack/lapack/conjugate.hpp"
+#define MIXED_PREC
 
 namespace tlapack {
 
@@ -79,6 +81,7 @@ void trsv(Uplo uplo, Op trans, Diag diag, const matrixA_t& A, vectorX_t& x)
     tlapack_check_false(diag != Diag::NonUnit && diag != Diag::Unit);
     tlapack_check_false(nrows(A) != ncols(A));
     tlapack_check_false(size(x) != n);
+
 
     if (trans == Op::NoTrans) {
         // Form x := A^{-1} * x

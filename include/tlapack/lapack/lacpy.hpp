@@ -53,7 +53,7 @@ void lacpy(uplo_t uplo, const matrixA_t& A, matrixB_t& B)
         for (idx_t j = 0; j < n; ++j) {
             const idx_t M = min(m, j + 1);
             for (idx_t i = 0; i < M; ++i){
-                std::cout << j << std::endl;
+        
                 B(i, j) = A(i, j);
             }
         }

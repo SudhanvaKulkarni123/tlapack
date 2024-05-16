@@ -292,6 +292,10 @@ int main(int argc, char** argv)
     typedef ml_dtypes::block_float8_ieee<4> bfp;
     int n;
     const tlapack::Layout L = tlapack::Layout::ColMajor;
+
+    double a = 1.0;
+    float b = 1.0;
+    auto c = a*b;
  
 
     n = atoi(argv[1]);

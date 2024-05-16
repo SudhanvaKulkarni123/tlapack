@@ -187,10 +187,10 @@ def vanilla_LU_gen(A, n, m,cond, new_val):
     A[m-1,n-1] = last
     return [to_ret, new_val - last]
 
-def LU_gen(n1,n2,cond,m, mode, p):
+def LU_gen(n1,cond,m, mode, p):
     #m is dimension of trailing submatrix that we will optimize on
     a_values = set_vals(p)
-    A_orig = init_matrix(n1, n2, cond, mode, a_values)
+    A_orig = init_matrix(n1, n1, cond, mode, a_values)
     P,L,U = sc.linalg.lu(A_orig)
     A = np.matmul(np.transpose(P), A_orig)
     lowest = float('inf')
@@ -200,11 +200,16 @@ def LU_gen(n1,n2,cond,m, mode, p):
         A , lowest, T = tunneling_step(A, T, 0.3, lowest, count, cond, True, m, a_values)
         count = count + 1
         if abs(np.linalg.cond(A) - cond) < 0.1*cond:
-            return list(A.flatten('F')) + [np.linalg.cond(A)] 
+            to_ret = A.flatten('F').tolist()[0]
+            to_ret.append(np.linalg.cond(A))
+            return to_ret
  
-    return list(A.flatten('F')) + [np.linalg.cond(A)]    #return only the condition number since I don't want to print out the bigger matrices
+    to_ret = A.flatten('F').tolist()[0]
+    to_ret.append(np.linalg.cond(A))
+   
+    
+    return to_ret
 
-print(LU_gen(500,50, 100, 1, False, 4)[-1])
 
 
 

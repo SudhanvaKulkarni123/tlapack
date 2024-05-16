@@ -50,7 +50,7 @@ def set_vals(p):
 
 def find_closest_value(b, lst):
     min_diff = float('inf')  # Initialize minimum difference to infinity
-    
+    closest = float('inf')
     for a in lst:
         diff = abs(b - a)
         if diff < min_diff:
@@ -200,18 +200,21 @@ def LU_gen(n1, n2, cond,m, mode, p):
         A , lowest, T = tunneling_step(A, T, 0.3, lowest, count, cond, True, m, a_values)
         count = count + 1
         if abs(np.linalg.cond(A) - cond) < 0.1*cond:
+            Ai = np.linalg.pinv(A)
+            ATA = np.linalg.inv(np.matmul(np.transpose(A), A))
             to_ret = A.flatten('F').tolist()[0]
             to_ret.append(np.linalg.cond(A))
-            to_ret.append(np.linalg.cond(np.block([[np.eye(n1), A], [np.transpose(A), np.zeros((n2,n2))]])))
+            # Q : Do we make a new copy of to_ret in the following line? If yes, can we change the line so that we modify the existing copy of to_ret?
+            # A : Yes, we make a new copy of to_ret in the following line. We can change the line so that we modify the existing copy of to_ret.
+            #
+            to_ret += Ai.flatten('F').tolist()[0] + ATA.flatten('F').tolist()[0]     
             return to_ret
- 
+    
+    Ai = np.linalg.pinv(A)
+    ATA = np.linalg.inv(np.matmul(np.transpose(A), A))
     to_ret = A.flatten('F').tolist()[0]
     to_ret.append(np.linalg.cond(A))
-    to_ret.append(np.linalg.cond(np.block([[np.eye(n1), A], [np.transpose(A), np.zeros((n2,n2))]])))
-    #maybe send over psuedoinv?
-    
-
-    
+    to_ret += Ai.flatten('F').tolist()[0] + ATA.flatten('F').tolist()[0]  
 
     return to_ret
 
